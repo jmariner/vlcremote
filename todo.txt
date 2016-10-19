@@ -1,0 +1,13 @@
+global keyboard shortcuts
+    menu to change local and global keyboard shortcuts, just like VLC
+    disable repeated hotkey presses when holding down key
+
+save user settings to a file in appdata
+    create a menubar button to browse to the folder containing that file (explorer.exe /select,/path/to/file)
+
+option to set default modes (playing/paused, looping/repeating/neither, shuffling, and maybe volume) to be set on load
+
+*** playlist search feature
+
+enable a toggle for instant pausing that stops local playback immediately as to not wait on the http call to go through
+need to make a refresh stream button for when stream gets out of sync with player
