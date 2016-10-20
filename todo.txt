@@ -7,7 +7,7 @@ save user settings to a file in appdata
 
 option to set default modes (playing/paused, looping/repeating/neither, shuffling, and maybe volume) to be set on load
 
-*** playlist search feature
+https://github.com/leMaik/swing-material/blob/master/src/main/java/de/craften/ui/swingmaterial/MaterialTextField.java
 
 enable a toggle for instant pausing that stops local playback immediately as to not wait on the http call to go through
 need to make a refresh stream button for when stream gets out of sync with player

@@ -5,12 +5,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.intellij.lang.annotations.MagicConstant;
+import org.jdesktop.swingx.JXList;
 
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.ChangeEvent;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.plaf.FontUIResource;
 import java.awt.*;
 import java.awt.event.*;
@@ -47,6 +50,7 @@ public class RemoteInterface extends JFrame {
 
 	private JPanel mainPanel, playlistPanel;
 	private JPanel topPanel, middlePanel, bottomPanel;
+	private JSeparator mainSeparator;
 
 	private JPanel topPre1, topPre2, topPost1, topPost2;
 
@@ -67,9 +71,11 @@ public class RemoteInterface extends JFrame {
 	private JSlider volumeSlider;
 	private JTextField volumeTextField;
 
-	JList<String> playlistList;
-	JButton playSelected;
-	JScrollPane playlistScrollPane;
+	private JXList playlistList;
+	private JButton playSelected;
+	private JScrollPane playlistScrollPane;
+	private JTextField playlistSearchField;
+	private JButton playlistClearSearchButton;
 
 	private List<JTextField> textFields = new ArrayList<>();
 	private List<AbstractButton> controlButtons = new ArrayList<>();
@@ -121,6 +127,8 @@ public class RemoteInterface extends JFrame {
 		mainPanel.add(middlePanel, BorderLayout.CENTER);
 		mainPanel.add(bottomPanel, BorderLayout.SOUTH);
 
+		mainSeparator = new JSeparator();
+
 		updateDelay = 1000;
 
 		this.setLayout(new BorderLayout());
@@ -135,11 +143,12 @@ public class RemoteInterface extends JFrame {
 
 	private void initPlaylistArea() {
 		List<Map<String, String>> playlistMaps = remote.getPlaylist();
-		Vector<String> playlist = new Vector<>();
-		playlistMaps.stream().forEachOrdered(i -> playlist.add(i.get("name")));
+		DefaultListModel<String> playlist = new DefaultListModel<>();
+		playlistMaps.stream().forEachOrdered(i -> playlist.addElement(i.get("name")));
 
-		playlistList = new JList<>(playlist);
+		playlistList = new JXList(playlist);
 		playlistList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		playlistList.setAutoCreateRowSorter(true);
 
 		playlistScrollPane = new JScrollPane(
 				playlistList,
@@ -150,17 +159,36 @@ public class RemoteInterface extends JFrame {
 		JLabel playlistTitle = new JLabel("Playlist");
 		playlistTitle.setFont(FONT.deriveFont(18f).deriveFont(UNDERLINE));
 		playlistTitle.setHorizontalAlignment(SwingConstants.CENTER);
+
+		/*
+		playlistClearSearchButton = new JButton("✖");
+		playlistClearSearchButton.setFont(new Font("Dingbats", 0, FONT.getSize()));
+		playlistClearSearchButton.setToolTipText("Clear the search");
+		playlistClearSearchButton.setForeground(Color.GRAY);
+		playlistClearSearchButton.setBackground(this.getBackground());
+		playlistClearSearchButton.setBorder(BorderFactory.createEmptyBorder());//*/
+
+		playlistSearchField = new JTextField(20);
+		JPanel playlistSearch = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+		playlistSearch.add(new JLabel("Search"));
+		playlistSearch.add(playlistSearchField);
+		//playlistSearch.add(playlistClearSearchButton);
+
+		JPanel playlistTop = new JPanel(new BorderLayout());
+		playlistTop.add(playlistTitle, BorderLayout.WEST);
+		playlistTop.add(playlistSearch, BorderLayout.EAST);
+
 		playSelected = new JButton("Play Selected");
 
 		playlistPanel = new JPanel(new BorderLayout(0, 10));
 		playlistPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
 		playlistPanel.setPreferredSize(new Dimension(WIDTH, PLAYLIST_HEIGHT));
-
-		playlistPanel.add(playlistTitle, BorderLayout.NORTH);
+		playlistPanel.add(playlistTop, BorderLayout.NORTH);
 		playlistPanel.add(playlistScrollPane, BorderLayout.CENTER);
 		playlistPanel.add(playSelected, BorderLayout.SOUTH);
 
 		playlistAreaShowing = false;
+
 	}
 
 	private void togglePlaylistArea(AWTEvent e) {
@@ -168,10 +196,12 @@ public class RemoteInterface extends JFrame {
 
 		if (playlistAreaShowing) {
 			this.setSize(WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT + PLAYLIST_HEIGHT);
+			this.add(mainSeparator, BorderLayout.CENTER);
 			this.add(playlistPanel, BorderLayout.SOUTH);
 		}
 		else {
 			this.setSize(WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
+			this.remove(mainSeparator);
 			this.remove(playlistPanel);
 		}
 
@@ -341,6 +371,7 @@ public class RemoteInterface extends JFrame {
 		togglePlaylistButton.addActionListener(this::togglePlaylistArea);
 		playSelected.addActionListener(this::switchSongToSelected);
 		playlistList.addMouseListener(new PlaylistMouseListener());
+		playlistSearchField.getDocument().addDocumentListener(new PlaylistSearchListener());
 	}
 
 	/* 	TODO create a menu to edit hotkeys. ask user to input a hotkey and use KeyStroke.getKeyStroke(SomeEvent e)
@@ -574,7 +605,16 @@ public class RemoteInterface extends JFrame {
 	}
 
 	private void switchSongToSelected(AWTEvent e) {
-		remote.switchSong(playlistList.getSelectedIndex());
+		String selected = playlistList.getSelectedValue().toString();
+		int index = -1;
+		for (int i=0, l=playlistList.getModel().getSize(); i<l; i++) {
+			if (playlistList.getModel().getElementAt(i).equals(selected)) {
+				index = i;
+				break;
+			}
+		}
+		playlistSearchField.setText("");
+		remote.switchSong(index);
 		updateInterface();
 	}
 
@@ -699,6 +739,28 @@ public class RemoteInterface extends JFrame {
 		public void keyPressed(KeyEvent e) {
 			if (e.getKeyCode() == VK_ESCAPE)
 				clearFocus();
+		}
+	}
+
+	private class PlaylistSearchListener implements DocumentListener {
+
+		@Override
+		public void insertUpdate(DocumentEvent e) { changedUpdate(e); }
+
+		@Override
+		public void removeUpdate(DocumentEvent e) { changedUpdate(e); }
+
+		@Override
+		public void changedUpdate(DocumentEvent e) {
+			playlistList.setRowFilter(new RowFilter<ListModel, Integer>() {
+				@Override
+				public boolean include(Entry<? extends ListModel, ? extends Integer> entry) {
+					String filterText = playlistSearchField.getText().trim();
+					return entry.getStringValue(0).toUpperCase()
+							.contains(filterText.toUpperCase())
+								|| filterText.isEmpty();
+				}
+			});
 		}
 	}
 
