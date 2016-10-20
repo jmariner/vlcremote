@@ -6,8 +6,18 @@ save user settings to a file in appdata
     create a menubar button to browse to the folder containing that file (explorer.exe /select,/path/to/file)
 
 option to set default modes (playing/paused, looping/repeating/neither, shuffling, and maybe volume) to be set on load
+option to favorite a particular song
 
-https://github.com/leMaik/swing-material/blob/master/src/main/java/de/craften/ui/swingmaterial/MaterialTextField.java
+save the song list in an integer, SongItem map with integer being the song ID from vlc and SongItem being an object containing title, artist, album, etc. use this to populate the playlist gui instead of calling the remote
 
-enable a toggle for instant pausing that stops local playback immediately as to not wait on the http call to go through
+option to only shuffle/loop through filtered song list (may not be easy, will need to wait for song to change normally and then switch the song again to the next song in the filtered list, or to a random one from that list if shuffle is on. maybe find a way to handle it from VLC?)
+
+maybe generate a list of songs using a different language and have VLC load the list form a text file? as long as the web interface allows editing items in the playlist, this would allow for ^^ to work
+
+EQ editor? does EQ even work over the stream, or can it be done locally?
+
+https://github.com/leMaik/swing-material
+
+enable a toggle for instant pausing that stops local playback immediately as to not wait on the http call to go through ***** TODO: THIS FIRST
+
 need to make a refresh stream button for when stream gets out of sync with player
