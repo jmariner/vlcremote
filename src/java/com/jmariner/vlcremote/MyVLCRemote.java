@@ -36,6 +36,7 @@ public class MyVLCRemote {
 	private int firstID;
 	private int playlistLength;
 
+	@Getter
 	private boolean playingStream;
 
 	@Setter
@@ -47,15 +48,20 @@ public class MyVLCRemote {
 	@Getter
 	private Map<Integer, SongItem> songMap;
 
-	public MyVLCRemote(String host, int webPort, String password, int streamPort) {
+	public MyVLCRemote(String host, int webPort, String password, int streamPort, Consumer<Throwable> handler) {
 		baseURL = String.format("http://%s:%s/", host, webPort);
 		streamURL = String.format("http://%s:%s/", host, streamPort);
 		httpPassword = password;
+		exceptionHandler = handler;
 
 		playbackVolume = 1;
 
 		loadSongList();
 
+	}
+
+	public MyVLCRemote(String host, int webPort, String password, int streamPort) {
+		this(host, webPort, password, streamPort, null);
 	}
 
 	private void loadSongList() {
@@ -73,18 +79,28 @@ public class MyVLCRemote {
 		});
 	}
 
-	public void playStream() {
+	public void playStream(int msDelay) {
 
 		Thread playbackThread = new Thread(() -> {
+			if (msDelay > 0) {
+				try { Thread.sleep(msDelay); }
+				catch (InterruptedException ignored) {}
+			}
 			streamSampledAudio(streamURL);
 		});
 
 		playbackThread.start();
-
 	}
+
+	public void playStream() { playStream(0); }
 
 	public void stopStream() {
 		playingStream = false;
+	}
+
+	public void restartStream() {
+		stopStream();
+		playStream(1000);
 	}
 
 	/** Adapted from http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/examples/PlaySoundStream.java
@@ -322,7 +338,7 @@ public class MyVLCRemote {
 		}
 		return out;
 	}
-	
+
 	private List<Map<String, String>> parsePlaylistJson(String json) {
 		List<Map<String, String>> out = new ArrayList<>();
 

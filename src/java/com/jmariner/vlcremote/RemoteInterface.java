@@ -46,8 +46,8 @@ public class RemoteInterface extends JFrame {
 
 	JMenuBar menuBar;
 
-	JCheckBoxMenuItem debugBorders;
-	JMenuItem updateDelayInput;
+	JCheckBoxMenuItem debugBorders, instantPause;
+	JMenuItem updateDelayInput, restartStream;
 
 	private JPanel mainPanel, playlistPanel;
 	private JPanel topPanel, middlePanel, bottomPanel;
@@ -86,7 +86,9 @@ public class RemoteInterface extends JFrame {
 	private int updateDelay;
 	private boolean connected, muted, playlistAreaShowing;
 
-	private final Font FONT = new Font("Courier New", Font.PLAIN, 14);
+	private boolean instantPauseEnabled;
+
+	private final Font FONT = Roboto.REGULAR.deriveFont(14f);
 
 	private final float MAX_TITLE_FONT_SIZE = 28f;
 	private final float MIN_TITLE_FONT_SIZE = 16f;
@@ -225,9 +227,13 @@ public class RemoteInterface extends JFrame {
 
 		debugBorders = new JCheckBoxMenuItem("Show debug borders");
 		updateDelayInput = new JMenuItem("Set update delay");
+		instantPause = new JCheckBoxMenuItem("Enable instant pause");
+		restartStream = new JMenuItem("Restart stream");
 
 		tools.add(debugBorders);
 		tools.add(updateDelayInput);
+		tools.add(instantPause);
+		tools.add(restartStream);
 
 		menuBar.add(tools);
 		menuBar.setPreferredSize(new Dimension(WIDTH, MENUBAR_HEIGHT));
@@ -361,9 +367,12 @@ public class RemoteInterface extends JFrame {
 
 		debugBorders.addActionListener(e -> debugBorderComponents(this, debugBorders.isSelected()));
 		updateDelayInput.addActionListener(this::setUpdateDelay);
+		instantPause.addActionListener(e -> instantPauseEnabled = ((JCheckBoxMenuItem)e.getSource()).isSelected());
+		restartStream.addActionListener(e -> remote.restartStream());
 
 		textFields.forEach(i -> i.addActionListener(this::connectPressed));
 		connectButton.addActionListener(this::connectPressed);
+		playPauseButton.addActionListener(this::playPausePressed);
 		controlButtons.forEach(b -> b.addActionListener(this::controlButtonPressed));
 		controls.forEach(c -> c.addKeyListener(new ControlsKeyListener()));
 
@@ -431,11 +440,10 @@ public class RemoteInterface extends JFrame {
 				hostField.getText(),
 				Integer.parseInt(webPortField.getText()),
 				String.valueOf(password),
-				Integer.parseInt(streamPortField.getText())
+				Integer.parseInt(streamPortField.getText()),
+				this::handleException
 		);
 		Arrays.fill(password, '0');
-
-		remote.setExceptionHandler(this::handleException);
 	}
 
 	private void updateInterface() {
@@ -528,7 +536,21 @@ public class RemoteInterface extends JFrame {
 		updateLoop = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(
 				() -> updateInterface(remote.getStatus()),
 				0, updateDelay, TimeUnit.MILLISECONDS
-		);	}
+		);
+	}
+
+	private void playPausePressed(ActionEvent e) {
+		// actual playing or pausing is handled by controlButtonPressed
+		// before the pause or play request goes through, stop or start the stream locally first
+
+		if (!instantPauseEnabled) return;
+
+		String cmd = e.getActionCommand();
+		if (cmd.equals("PLAY") && !remote.isPlayingStream())
+			remote.playStream();
+		else if (cmd.equals("PAUSE") && remote.isPlayingStream())
+			remote.stopStream();
+	}
 
 	private void controlButtonPressed(ActionEvent e) {
 		assert connected;

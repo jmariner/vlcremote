@@ -14,10 +14,6 @@ maybe generate a list of songs using a different language and have VLC load the 
 
 EQ editor? does EQ even work over the stream, or can it be done locally?
 
-https://github.com/leMaik/swing-material
-
-enable a toggle for instant pausing that stops local playback immediately as to not wait on the http call to go through ***** TODO: THIS FIRST
-
-need to make a refresh stream button for when stream gets out of sync with player
-
 button to toggle table view / list view for playlist
+
+TODO test "instant pause" and restarting of stream on worse connection
