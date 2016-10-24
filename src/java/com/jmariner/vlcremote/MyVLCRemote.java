@@ -1,5 +1,6 @@
 package com.jmariner.vlcremote;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -32,9 +33,7 @@ public class MyVLCRemote {
 	private String baseURL;
 	private String streamURL;
 
-	private String httpHost;
 	private String httpPassword;
-	private int httpPort;
 
 	private int firstID;
 	private int playlistLength;
@@ -50,9 +49,7 @@ public class MyVLCRemote {
 	public MyVLCRemote(String host, int webPort, String password, int streamPort) {
 		baseURL = String.format("http://%s:%s/", host, webPort);
 		streamURL = String.format("http://%s:%s/", host, streamPort);
-		httpHost = host;
 		httpPassword = password;
-		httpPort = webPort;
 
 		playbackVolume = 1;
 	}
@@ -190,8 +187,6 @@ public class MyVLCRemote {
 
 		try {
 
-		//	Unirest.setProxy(new HttpHost("127.0.0.1", 8888));
-
 			HttpResponse<String> response =
 					Unirest.get(baseURL + location)
 					.basicAuth("", httpPassword)
@@ -216,7 +211,7 @@ public class MyVLCRemote {
 		}
 		catch (UnirestException e) {
 			if (e.getCause() instanceof UnknownHostException)
-				log.error("Unknown host: " + httpHost);
+				log.error("Unknown host: " + baseURL);
 			else if (e.getCause() instanceof ConnectTimeoutException)
 				log.error(e.getCause().getMessage());
 			else
@@ -228,8 +223,12 @@ public class MyVLCRemote {
 		return null;
 	}
 
+	public List<Map<String, String>> getPlaylist0() {
+		return parsePlaylistJson0(connect("requests/playlist.json"));
+	}
+
 	public List<Map<String, String>> getPlaylist() {
-		return parsePlaylistJson(connect("requests/playlist.json"));
+		return parsePlaylistJson(connect("custom/playlist.json"));
 	}
 
 	public Map<String, String> getStatus() {
@@ -305,7 +304,7 @@ public class MyVLCRemote {
 		return out;
 	}
 
-	private List<Map<String, String>> parsePlaylistJson(String json) {
+	private List<Map<String, String>> parsePlaylistJson0(String json) {
 		List<Map<String, String>> out = new ArrayList<>();
 
 		JsonElement root = new JsonParser().parse(json);
@@ -338,6 +337,38 @@ public class MyVLCRemote {
 
 			JsonElement isCurrent = o.get("current");
 			item.put("current", isCurrent == null ? "false" : "true");
+
+			out.add(item);
+		});
+
+		playlistLength = out.size();
+
+		return out;
+	}
+
+	private List<Map<String, String>> parsePlaylistJson(String json) {
+		List<Map<String, String>> out = new ArrayList<>();
+
+		JsonElement root = new JsonParser().parse(json);
+		assert root.isJsonArray();
+		JsonArray items = root.getAsJsonArray();
+
+		firstID = -1;
+
+		items.getAsJsonArray().forEach(i -> {
+			Map<String, String> item = new HashMap<>();
+			JsonObject o = i.getAsJsonObject();
+
+			String id = o.get("id").getAsString();
+			item.put("id", id);
+			if (firstID == -1)
+				firstID = Integer.parseInt(id);
+
+			Stream.of("duration", "title", "name", "artist", "album").forEach(
+					s -> item.put(s, o.get(s).getAsString())
+			);
+
+			item.put("current", o.get("current") == null ? "false" : "true");
 
 			out.add(item);
 		});

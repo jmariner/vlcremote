@@ -1,6 +1,7 @@
 package com.jmariner.vlcremote;
 
 import com.jmariner.vlcremote.MyVLCRemote.Command;
+import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -75,7 +76,7 @@ public class RemoteInterface extends JFrame {
 	private JButton playSelected;
 	private JScrollPane playlistScrollPane;
 	private JTextField playlistSearchField;
-	private JButton playlistClearSearchButton;
+//	private JButton playlistClearSearchButton;
 
 	private List<JTextField> textFields = new ArrayList<>();
 	private List<AbstractButton> controlButtons = new ArrayList<>();
@@ -109,6 +110,12 @@ public class RemoteInterface extends JFrame {
 		Stream.of("Label.font", "TextField.font", "Button.font").forEach(
 				s -> UIManager.put(s, new FontUIResource(FONT))
 		);
+
+		try {
+			UIManager.setLookAndFeel(new NoireLookAndFeel());
+		} catch (UnsupportedLookAndFeelException e) {
+			e.printStackTrace();
+		}
 
 		initMenu();
 		initTop();
