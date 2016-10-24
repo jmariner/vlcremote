@@ -18,10 +18,11 @@ import javax.sound.sampled.*;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -241,10 +242,6 @@ public class MyVLCRemote {
 		return null;
 	}
 
-	public List<Map<String, String>> getPlaylist0() {
-		return parsePlaylistJson0(connect("requests/playlist.json"));
-	}
-
 	public List<Map<String, String>> getPlaylist() {
 		return parsePlaylistJson(connect("custom/playlist.json"));
 	}
@@ -325,49 +322,7 @@ public class MyVLCRemote {
 		}
 		return out;
 	}
-
-	private List<Map<String, String>> parsePlaylistJson0(String json) {
-		List<Map<String, String>> out = new ArrayList<>();
-
-		JsonElement root = new JsonParser().parse(json);
-		assert root.isJsonObject();
-
-		JsonElement c1 = root.getAsJsonObject().get("children");
-		assert c1.isJsonArray();
-
-		JsonElement c2 = c1.getAsJsonArray().get(0).getAsJsonObject().get("children");
-		assert c2.isJsonArray();
-
-		firstID = -1;
-
-		c2.getAsJsonArray().forEach(i -> {
-			Map<String, String> item = new HashMap<>();
-			JsonObject o = i.getAsJsonObject();
-
-			String id = o.get("id").getAsString();
-			item.put("id", id);
-			if (firstID == -1)
-				firstID = Integer.parseInt(id);
-
-			item.put("duration", o.get("duration").getAsString());
-			item.put("title", o.get("name").getAsString());
-
-			String path = o.get("uri").getAsString();
-			Matcher m = Pattern.compile("^.+/([^/]+)\\.[a-zA-Z0-9]{3}$").matcher(path);
-			String name = m.find() ? decodeUrlParam(m.group(1)) : "";
-			item.put("name", name);
-
-			JsonElement isCurrent = o.get("current");
-			item.put("current", isCurrent == null ? "false" : "true");
-
-			out.add(item);
-		});
-
-		playlistLength = out.size();
-
-		return out;
-	}
-
+	
 	private List<Map<String, String>> parsePlaylistJson(String json) {
 		List<Map<String, String>> out = new ArrayList<>();
 
