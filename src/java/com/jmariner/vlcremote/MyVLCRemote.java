@@ -18,10 +18,7 @@ import javax.sound.sampled.*;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,12 +43,33 @@ public class MyVLCRemote {
 	@Setter
 	private Consumer<Throwable> exceptionHandler;
 
+	@Getter
+	private Map<Integer, SongItem> songMap;
+
 	public MyVLCRemote(String host, int webPort, String password, int streamPort) {
 		baseURL = String.format("http://%s:%s/", host, webPort);
 		streamURL = String.format("http://%s:%s/", host, streamPort);
 		httpPassword = password;
 
 		playbackVolume = 1;
+
+		loadSongList();
+
+	}
+
+	private void loadSongList() {
+
+		songMap = new HashMap<>();
+
+		getPlaylist().forEach(s -> {
+			int id = Integer.parseInt(s.get("id"));
+			assert !songMap.containsKey(id);
+
+			songMap.put(id, new SongItem(
+					id, s.get("title"), s.get("artist"), s.get("album"), Integer.parseInt(s.get("duration"))
+			));
+
+		});
 	}
 
 	public void playStream() {
@@ -183,7 +201,7 @@ public class MyVLCRemote {
 		return connect("") != null;
 	}
 
-	public String connect(String location) {
+	private String connect(String location) {
 
 		try {
 
@@ -253,13 +271,17 @@ public class MyVLCRemote {
 		return sendCommand(Command.SET_VOLUME, ""+(percentVolume * 256));
 	}
 
-	public Map<String, String> switchSong(int zeroBasedID) {
+	public Map<String, String> switchSongZeroBased(int zeroBasedID) {
 		if (zeroBasedID < 0)
 			zeroBasedID = 0;
 		if (zeroBasedID > playlistLength-1)
 			zeroBasedID = playlistLength-1;
 
 		return sendCommand(Command.PLAY_ITEM, ""+transformZeroBasedID(zeroBasedID));
+	}
+
+	public Map<String, String> switchSong(int playlistID) {
+		return switchSongZeroBased(transformPlaylistID(playlistID));
 	}
 
 	public int transformZeroBasedID(int zeroBasedSongID) {

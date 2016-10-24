@@ -76,7 +76,7 @@ public class RemoteInterface extends JFrame {
 	private JButton playSelected;
 	private JScrollPane playlistScrollPane;
 	private JTextField playlistSearchField;
-//	private JButton playlistClearSearchButton;
+	private JButton playlistClearSearchButton;
 
 	private List<JTextField> textFields = new ArrayList<>();
 	private List<AbstractButton> controlButtons = new ArrayList<>();
@@ -149,9 +149,10 @@ public class RemoteInterface extends JFrame {
 	}
 
 	private void initPlaylistArea() {
-		List<Map<String, String>> playlistMaps = remote.getPlaylist();
-		DefaultListModel<String> playlist = new DefaultListModel<>();
-		playlistMaps.stream().forEachOrdered(i -> playlist.addElement(i.get("name")));
+		Map<Integer, SongItem> songMap = remote.getSongMap();
+
+		DefaultListModel<SongItem> playlist = new DefaultListModel<>();
+		songMap.values().stream().forEachOrdered(playlist::addElement);
 
 		playlistList = new JXList(playlist);
 		playlistList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -167,7 +168,7 @@ public class RemoteInterface extends JFrame {
 		playlistTitle.setFont(FONT.deriveFont(18f).deriveFont(UNDERLINE));
 		playlistTitle.setHorizontalAlignment(SwingConstants.CENTER);
 
-		/*
+		//*
 		playlistClearSearchButton = new JButton("✖");
 		playlistClearSearchButton.setFont(new Font("Dingbats", 0, FONT.getSize()));
 		playlistClearSearchButton.setToolTipText("Clear the search");
@@ -529,36 +530,6 @@ public class RemoteInterface extends JFrame {
 				0, updateDelay, TimeUnit.MILLISECONDS
 		);	}
 
-	/*
-	private void startUpdateLoop() {
-		UpdateLoop l = new UpdateLoop(this);
-		l.execute();
-	}
-
-	private class UpdateLoop extends SwingWorker<Map<String, String>, Map<String, String>> {
-
-		private RemoteInterface _this;
-		UpdateLoop(RemoteInterface _this) {
-			this._this = _this;
-		}
-
-		@Override
-		protected Map<String, String> doInBackground() throws Exception {
-			Map<String, String> out = new HashMap<>();
-			while (connected) {
-				out = remote.getStatus();
-				publish(out);
-				Thread.sleep(updateDelay);
-			}
-			return out;
-		}
-
-		@Override
-		protected void process(List<Map<String, String>> chunks) {
-			chunks.stream().forEachOrdered(_this::updateInterface);
-		}
-	}//*/
-
 	private void controlButtonPressed(ActionEvent e) {
 		assert connected;
 
@@ -612,14 +583,7 @@ public class RemoteInterface extends JFrame {
 	}
 
 	private void switchSongToSelected(AWTEvent e) {
-		String selected = playlistList.getSelectedValue().toString();
-		int index = -1;
-		for (int i=0, l=playlistList.getModel().getSize(); i<l; i++) {
-			if (playlistList.getModel().getElementAt(i).equals(selected)) {
-				index = i;
-				break;
-			}
-		}
+		int index = ((SongItem)playlistList.getSelectedValue()).getId();
 		playlistSearchField.setText("");
 		remote.switchSong(index);
 		updateInterface();
@@ -737,18 +701,6 @@ public class RemoteInterface extends JFrame {
 		}
 	}
 
-	private class ControlsKeyListener implements KeyListener {
-
-		public void keyTyped(KeyEvent e) {}
-		public void keyReleased(KeyEvent e) {}
-
-		@Override
-		public void keyPressed(KeyEvent e) {
-			if (e.getKeyCode() == VK_ESCAPE)
-				clearFocus();
-		}
-	}
-
 	private class PlaylistSearchListener implements DocumentListener {
 
 		@Override
@@ -768,6 +720,18 @@ public class RemoteInterface extends JFrame {
 								|| filterText.isEmpty();
 				}
 			});
+		}
+	}
+
+	private class ControlsKeyListener implements KeyListener {
+
+		public void keyTyped(KeyEvent e) {}
+		public void keyReleased(KeyEvent e) {}
+
+		@Override
+		public void keyPressed(KeyEvent e) {
+			if (e.getKeyCode() == VK_ESCAPE)
+				clearFocus();
 		}
 	}
 
