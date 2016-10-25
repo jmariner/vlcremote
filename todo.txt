@@ -17,3 +17,8 @@ EQ editor? does EQ even work over the stream, or can it be done locally?
 button to toggle table view / list view for playlist
 
 TODO test "instant pause" and restarting of stream on worse connection
+
+
+
+***
+switch to using VLC's media library function, where multiple folders can be added and swapped between. need to rewrite playlist parser to account for this, as well as keep track of each different playlist/folder using a list or map
