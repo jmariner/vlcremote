@@ -16,9 +16,13 @@ EQ editor? does EQ even work over the stream, or can it be done locally?
 
 button to toggle table view / list view for playlist
 
-TODO test "instant pause" and restarting of stream on worse connection
+TODO instant pause waits until the end of the buffer, have the playback loop break if playingStream is false on top of looping while it is true
 
-
+TODO use java.util.Properties to save user data
+have a map of properties keys and their defaults
+store the host and ports in the properties but require password entering every time (different initial top pane or a popup for password)
+http://www.ibm.com/developerworks/library/j-prefapi/
+http://stackoverflow.com/questions/10246503/java-how-do-you-use-the-preference-api-where-do-these-variables-store
 
 ***
 switch to using VLC's media library function, where multiple folders can be added and swapped between. need to rewrite playlist parser to account for this, as well as keep track of each different playlist/folder using a list or map
