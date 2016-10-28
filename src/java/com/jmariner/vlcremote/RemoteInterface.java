@@ -19,6 +19,7 @@ import javax.swing.plaf.FontUIResource;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.font.TextAttribute;
+import java.io.IOException;
 import java.text.AttributedCharacterIterator.Attribute;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -44,10 +45,8 @@ public class RemoteInterface extends JFrame {
 
 	private MyVLCRemote remote;
 
-	JMenuBar menuBar;
-
-	JCheckBoxMenuItem debugBorders, instantPause;
-	JMenuItem updateDelayInput, restartStream;
+	private JMenuBar menuBar;
+	private JCheckBoxMenuItem instantPause;
 
 	private JPanel mainPanel, playlistPanel;
 	private JPanel topPanel, middlePanel, bottomPanel;
@@ -74,7 +73,6 @@ public class RemoteInterface extends JFrame {
 
 	private JXList playlistList;
 	private JButton playSelected;
-	private JScrollPane playlistScrollPane;
 	private JTextField playlistSearchField;
 	private JButton playlistClearSearchButton;
 
@@ -138,8 +136,6 @@ public class RemoteInterface extends JFrame {
 
 		mainSeparator = new JSeparator();
 
-		updateDelay = 1000;
-
 		this.setLayout(new BorderLayout());
 		this.add(mainPanel, BorderLayout.NORTH);
 		this.setJMenuBar(menuBar);
@@ -148,6 +144,10 @@ public class RemoteInterface extends JFrame {
 		this.setResizable(false);
 		this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		Runtime.getRuntime().addShutdownHook(new CleanupOnShutdown());
+
+		loadSettings();
+		if (UserSettings.getBoolean("autoconnect", false))
+			connectButton.doClick();
 	}
 
 	private void initPlaylistArea() {
@@ -160,7 +160,7 @@ public class RemoteInterface extends JFrame {
 		playlistList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		playlistList.setAutoCreateRowSorter(true);
 
-		playlistScrollPane = new JScrollPane(
+		JScrollPane playlistScrollPane = new JScrollPane(
 				playlistList,
 				ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
 				ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
@@ -225,27 +225,40 @@ public class RemoteInterface extends JFrame {
 		JMenu tools = new JMenu("Tools");
 		tools.setMnemonic(VK_T);
 
-		debugBorders = new JCheckBoxMenuItem("Show debug borders");
-		updateDelayInput = new JMenuItem("Set update delay");
+		JCheckBoxMenuItem debugBorders = new JCheckBoxMenuItem("Show debug borders");
+		JMenuItem updateDelayInput = new JMenuItem("Set update delay");
 		instantPause = new JCheckBoxMenuItem("Enable instant pause");
-		restartStream = new JMenuItem("Restart stream");
+		JMenuItem restartStream = new JMenuItem("Restart stream");
+		JMenuItem gotoPreferences = new JMenuItem("Show Preferences File");
 
 		tools.add(debugBorders);
 		tools.add(updateDelayInput);
 		tools.add(instantPause);
 		tools.add(restartStream);
+		tools.add(gotoPreferences);
 
 		menuBar.add(tools);
 		menuBar.setPreferredSize(new Dimension(WIDTH, MENUBAR_HEIGHT));
 
+		debugBorders.addActionListener(e -> debugBorderComponents(this, ((JCheckBoxMenuItem)e.getSource()).isSelected()));
+		updateDelayInput.addActionListener(this::setUpdateDelay);
+		instantPause.addActionListener(this::toggleInstantPause);
+		restartStream.addActionListener(e -> remote.restartStream());
+		gotoPreferences.addActionListener(this::viewPreferencesFile);
+	}
+
+	private void loadSettings() {
+		updateDelay = UserSettings.getInt("updateDelay", 1000);
+		instantPauseEnabled = UserSettings.getBoolean("instantPause", false);
+		instantPause.setSelected(instantPauseEnabled);
 	}
 
 	private void initTop() {
 
-		hostField = new JTextField("home.jmariner.com", 20);
-		webPortField = new JTextField("8080", 5);
-		passwordField = new JPasswordField("", 20);
-		streamPortField = new JTextField("8081", 5);
+		hostField = new JTextField(UserSettings.get("httpHost", ""), 20);
+		webPortField = new JTextField(UserSettings.get("httpPort", ""), 5);
+		passwordField = new JPasswordField(UserSettings.get("httpPass", ""), 20);
+		streamPortField = new JTextField(UserSettings.get("streamPort", ""), 5);
 		connectButton = new JButton("Connect");
 
 		textFields = Arrays.asList(hostField, webPortField, passwordField, streamPortField);
@@ -365,11 +378,6 @@ public class RemoteInterface extends JFrame {
 
 	private void initActionListeners() {
 
-		debugBorders.addActionListener(e -> debugBorderComponents(this, debugBorders.isSelected()));
-		updateDelayInput.addActionListener(this::setUpdateDelay);
-		instantPause.addActionListener(e -> instantPauseEnabled = ((JCheckBoxMenuItem)e.getSource()).isSelected());
-		restartStream.addActionListener(e -> remote.restartStream());
-
 		textFields.forEach(i -> i.addActionListener(this::connectPressed));
 		connectButton.addActionListener(this::connectPressed);
 		playPauseButton.addActionListener(this::playPausePressed);
@@ -410,6 +418,7 @@ public class RemoteInterface extends JFrame {
 
 	private void connectPressed(AWTEvent e) {
 
+		saveConnectionInfo();
 		initRemote();
 		connected = remote.testConnection();
 
@@ -431,6 +440,38 @@ public class RemoteInterface extends JFrame {
 			updateInterface(remote.getStatus());
 			startUpdateLoop();
 			remote.playStream();
+		}
+	}
+
+	private void saveConnectionInfo() {
+		UserSettings.put("httpHost", hostField.getText());
+		UserSettings.put("httpPort", webPortField.getText());
+		UserSettings.put("streamPort", streamPortField.getText());
+
+		if (!UserSettings.keyExists("httpPass") && UserSettings.getBoolean("saveHttpPass", true)) {
+
+			boolean savePass = JOptionPane.showConfirmDialog(this,
+					restrictDialogWidth("Save password in preferences?<br>WARNING: This saves in plain text."),
+					"Save Password",
+					YES_NO_OPTION,
+					QUESTION_MESSAGE
+			) == 0;
+
+			UserSettings.putBoolean("saveHttpPass", savePass);
+
+			if (savePass)
+				UserSettings.put("httpPass", String.valueOf(passwordField.getPassword()));
+		}
+
+		if (UserSettings.keyExists("httpPass") && !UserSettings.keyExists("autoconnect")) {
+			boolean autoconnect = JOptionPane.showConfirmDialog(this,
+					"Auto connect from startup next time?",
+					"Auto Connect",
+					YES_NO_OPTION,
+					QUESTION_MESSAGE
+			) == 0;
+
+			UserSettings.putBoolean("autoconnect", autoconnect);
 		}
 	}
 
@@ -524,9 +565,12 @@ public class RemoteInterface extends JFrame {
 		String input =
 				JOptionPane.showInputDialog(this, "Set update delay (ms)", "Update Delay", INFORMATION_MESSAGE);
 		if (StringUtils.isNumeric(input)) {
+			int d =  Integer.parseInt(input);
 			updateLoop.cancel(true);
-			updateDelay = Integer.parseInt(input);
+			updateDelay = d;
 			startUpdateLoop();
+
+			UserSettings.putInt("updateDelay", d);
 		}
 		else
 			handleException(new IllegalArgumentException("Input must be a number"));
@@ -609,6 +653,20 @@ public class RemoteInterface extends JFrame {
 		playlistSearchField.setText("");
 		remote.switchSong(index);
 		updateInterface();
+	}
+
+	private void viewPreferencesFile(AWTEvent e) {
+		try {
+			Runtime.getRuntime().exec("explorer.exe /select,"+UserSettings.getPrefsFile().getPath());
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
+	}
+
+	private void toggleInstantPause(ActionEvent e) {
+		instantPauseEnabled = ((JCheckBoxMenuItem)e.getSource()).isSelected();
+
+		UserSettings.putBoolean("instantPause", instantPauseEnabled);
 	}
 
 	private void clearFocus() {

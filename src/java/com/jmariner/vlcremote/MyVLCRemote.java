@@ -41,6 +41,7 @@ public class MyVLCRemote {
 
 	@Setter
 	private double playbackVolume;
+	private SourceDataLine playbackLine;
 
 	@Setter
 	private Consumer<Throwable> exceptionHandler;
@@ -96,6 +97,7 @@ public class MyVLCRemote {
 
 	public void stopStream() {
 		playingStream = false;
+		playbackLine.stop();
 	}
 
 	public void restartStream() {
@@ -109,7 +111,7 @@ public class MyVLCRemote {
 	private void streamSampledAudio(String urlString)  {
 
 		AudioInputStream ain = null;  // We read audio data from here
-		SourceDataLine line = null;   // And write it here.
+		playbackLine = null;   // And write it here.
 
 		try {
 
@@ -139,10 +141,10 @@ public class MyVLCRemote {
 			}
 
 			// Open the line through which we'll play the streaming audio.
-			line = (SourceDataLine) AudioSystem.getLine(info);
-			line.open(format);
+			playbackLine = (SourceDataLine) AudioSystem.getLine(info);
+			playbackLine.open(format);
 
-			FloatControl gainControl = (FloatControl) line.getControl(FloatControl.Type.MASTER_GAIN);
+			FloatControl gainControl = (FloatControl) playbackLine.getControl(FloatControl.Type.MASTER_GAIN);
 
 			// Allocate a buffer for reading from the input stream and writing
 			// to the line.  Make it large enough to hold 4k audio frames.
@@ -165,7 +167,7 @@ public class MyVLCRemote {
 				// Now that we've got some audio data to write to the line,
 				// start the line, so it will play that data as we write it.
 				if (!started) {
-					line.start();
+					playbackLine.start();
 					started = true;
 				}
 
@@ -175,7 +177,7 @@ public class MyVLCRemote {
 
 				// Now write the bytes. The line will buffer them and play
 				// them. This call will block until all bytes are written.
-				line.write(buffer, 0, bytesToWrite);
+				playbackLine.write(buffer, 0, bytesToWrite);
 
 				// If we didn't have an integer multiple of the frame size,
 				// then copy the remaining bytes to the start of the buffer.
@@ -194,14 +196,14 @@ public class MyVLCRemote {
 			}
 
 			// Now block until all buffered sound finishes playing.
-			line.drain();
+			playbackLine.drain();
 		}
 		catch (LineUnavailableException | UnsupportedAudioFileException | IOException e) {
 			e.printStackTrace();
 		}
 		finally { // Always relinquish the resources we use
 			try {
-				if (line != null) line.close();
+				if (playbackLine != null) playbackLine.close();
 				if (ain != null) ain.close();
 			}
 			catch (IOException e) {
