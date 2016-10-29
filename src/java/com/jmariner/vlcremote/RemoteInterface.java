@@ -146,8 +146,12 @@ public class RemoteInterface extends JFrame {
 		Runtime.getRuntime().addShutdownHook(new CleanupOnShutdown());
 
 		loadSettings();
-		if (UserSettings.getBoolean("autoconnect", false))
-			connectButton.doClick();
+		if (UserSettings.getBoolean("autoconnect", false)) {
+			if (UserSettings.keyExists("httpPass"))
+				connectButton.doClick();
+			else
+				UserSettings.getRoot().remove("autoconnect");
+		}
 	}
 
 	private void initPlaylistArea() {
