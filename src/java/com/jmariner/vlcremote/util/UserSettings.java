@@ -1,5 +1,6 @@
-package com.jmariner.vlcremote;
+package com.jmariner.vlcremote.util;
 
+import com.jmariner.vlcremote.RemoteInterface;
 import lombok.extern.slf4j.Slf4j;
 import net.infotrek.util.prefs.FilePreferencesFactory;
 
@@ -11,7 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
-import java.util.stream.Stream;
 
 @SuppressWarnings("unused")
 @Slf4j
@@ -26,11 +26,11 @@ public class UserSettings {
 	    try {
 
 			String prefsFileLocation = (new File(
-					UserSettings.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()
+					RemoteInterface.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()
 			)).getParentFile().getPath() + File.separator + fileName;
 
 			if (!(new File(prefsFileLocation)).exists()) {
-				InputStream in = UserSettings.class.getResourceAsStream("defaults.prefs");
+				InputStream in = RemoteInterface.class.getResourceAsStream("defaults.prefs");
 				if (in != null)
 					Files.copy(in, Paths.get(prefsFileLocation));
 			}
@@ -42,7 +42,7 @@ public class UserSettings {
 			e.printStackTrace();
 		}
 
-		return Preferences.userNodeForPackage(UserSettings.class);
+		return Preferences.userNodeForPackage(RemoteInterface.class);
 	}
 
 	public static File getPrefsFile() {
@@ -117,12 +117,24 @@ public class UserSettings {
 	public static boolean keyExists(String key) {
 		return getRoot().get(key, null) != null;
 	}
-	
-	public static void main(String[] args) throws BackingStoreException {
 
-		Preferences prefs = UserSettings.getRoot();
-		
-		Stream.of(prefs.keys()).forEach(s -> log.info(s + " = " + prefs.get(s, null)));
+	public static void viewPreferencesFile() {
+		try {
+			Runtime.getRuntime().exec("explorer.exe /select," + getPrefsFile().getPath());
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
+	}
 
+	/**
+	 * Blocking/synchronous call to force the preferences file to be updated before accessing it
+	 */
+	public static void forceUpdate() {
+		try {
+			getRoot().flush();
+		}
+		catch (BackingStoreException e) {
+			e.printStackTrace();
+		}
 	}
 }

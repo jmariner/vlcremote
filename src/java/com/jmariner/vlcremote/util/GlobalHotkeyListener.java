@@ -1,4 +1,4 @@
-package com.jmariner.vlcremote;
+package com.jmariner.vlcremote.util;
 
 import com.tulskiy.keymaster.common.MediaKey;
 import com.tulskiy.keymaster.common.Provider;
@@ -92,7 +92,7 @@ public class GlobalHotkeyListener {
 
 	@SuppressWarnings("unused")
 	@AllArgsConstructor
-	enum Mod {
+	public enum Mod {
 
 		NONE(0),
 

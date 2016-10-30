@@ -2,7 +2,9 @@
  * Original package: de.craften.ui.swingmaterial
  * Source: https://github.com/leMaik/swing-material/blob/master/src/main/java/de/craften/ui/swingmaterial/Roboto.java
  */
-package com.jmariner.vlcremote;
+package com.jmariner.vlcremote.util;
+
+import com.jmariner.vlcremote.RemoteInterface;
 
 import java.awt.*;
 import java.io.IOException;
@@ -25,7 +27,7 @@ public class Roboto {
 
 	private static Font loadFont(String resourceName) {
 		try {
-			return Font.createFont(Font.TRUETYPE_FONT, Roboto.class.getResourceAsStream("fonts/"+resourceName));
+			return Font.createFont(Font.TRUETYPE_FONT, RemoteInterface.class.getResourceAsStream("fonts/"+resourceName));
 		} catch (IOException | FontFormatException e) {
 			throw new RuntimeException("Could not load " + resourceName, e);
 		}

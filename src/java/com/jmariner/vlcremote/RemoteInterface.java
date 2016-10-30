@@ -1,29 +1,27 @@
 package com.jmariner.vlcremote;
 
 import com.jmariner.vlcremote.MyVLCRemote.Command;
+import com.jmariner.vlcremote.components.MainMenuBar;
+import com.jmariner.vlcremote.components.PlaylistPanel;
+import com.jmariner.vlcremote.util.SimpleIcon;
+import com.jmariner.vlcremote.util.GlobalHotkeyListener;
+import com.jmariner.vlcremote.util.GuiUtils;
+import com.jmariner.vlcremote.util.UserSettings;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.intellij.lang.annotations.MagicConstant;
-import org.jdesktop.swingx.JXList;
 
 import javax.swing.*;
-import javax.swing.border.Border;
-import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.ChangeEvent;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
 import javax.swing.plaf.FontUIResource;
 import java.awt.*;
 import java.awt.event.*;
-import java.awt.font.TextAttribute;
-import java.io.IOException;
-import java.text.AttributedCharacterIterator.Attribute;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -34,7 +32,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.jmariner.vlcremote.GlobalHotkeyListener.Mod;
+import static com.jmariner.vlcremote.util.Constants.*;
+import static com.jmariner.vlcremote.util.GlobalHotkeyListener.Mod.NONE;
 import static com.tulskiy.keymaster.common.MediaKey.*;
 import static java.awt.event.KeyEvent.*;
 import static javax.swing.JOptionPane.*;
@@ -43,14 +42,16 @@ import static javax.swing.JOptionPane.*;
 @SuppressWarnings("FieldCanBeLocal")
 public class RemoteInterface extends JFrame {
 
+	@Getter(AccessLevel.PUBLIC)
 	private MyVLCRemote remote;
 
-	private JMenuBar menuBar;
-	private JCheckBoxMenuItem instantPause;
+	private MainMenuBar menuBar;
 
-	private JPanel mainPanel, playlistPanel;
+	private JPanel mainPanel;
 	private JPanel topPanel, middlePanel, bottomPanel;
 	private JSeparator mainSeparator;
+
+	private PlaylistPanel playlistPanel;
 
 	private JPanel topPre1, topPre2, topPost1, topPost2;
 
@@ -71,39 +72,18 @@ public class RemoteInterface extends JFrame {
 	private JSlider volumeSlider;
 	private JTextField volumeTextField;
 
-	private JXList playlistList;
-	private JButton playSelected;
-	private JTextField playlistSearchField;
-	private JButton playlistClearSearchButton;
-
 	private List<JTextField> textFields = new ArrayList<>();
 	private List<AbstractButton> controlButtons = new ArrayList<>();
 	private List<JComponent> controls = new ArrayList<>();
 
 	private ScheduledFuture updateLoop;
-	private int updateDelay;
+
+	@Getter(AccessLevel.PUBLIC) @Setter(AccessLevel.PUBLIC)
 	private boolean connected, muted, playlistAreaShowing;
 
-	private boolean instantPauseEnabled;
-
-	private final Font FONT = Roboto.REGULAR.deriveFont(14f);
-
-	private final float MAX_TITLE_FONT_SIZE = 28f;
-	private final float MIN_TITLE_FONT_SIZE = 16f;
-	private final double MAX_TITLE_WIDTH = 600.0;
-	private final int MAIN_PADDING = 10;
-	private final int WIDTH = 650;
-	private final int MAIN_HEIGHT = 225;
-	private final int PLAYLIST_HEIGHT = 300;
-	private final int MENUBAR_HEIGHT = 25;
-	private final int MAX_HEIGHT = MAIN_HEIGHT + PLAYLIST_HEIGHT + MENUBAR_HEIGHT;
-
+	// this is to create a NullPointerException if i try using the superclass's HEIGHT value of 1
 	@SuppressWarnings("unused")
 	private final Object HEIGHT = null;
-
-	private final HashMap<Attribute, Object> UNDERLINE = new HashMap<Attribute, Object>(){{
-		put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON);
-	}};
 
 	public RemoteInterface() {
 
@@ -112,12 +92,15 @@ public class RemoteInterface extends JFrame {
 		);
 
 		try {
+			Properties p = new Properties();
+			p.put("logoString", "");
+			NoireLookAndFeel.setCurrentTheme(p);
 			UIManager.setLookAndFeel(new NoireLookAndFeel());
 		} catch (UnsupportedLookAndFeelException e) {
 			e.printStackTrace();
 		}
 
-		initMenu();
+		menuBar = new MainMenuBar(this);
 		initTop();
 		initMiddle();
 		initBottom();
@@ -128,7 +111,7 @@ public class RemoteInterface extends JFrame {
 
 		mainPanel = new JPanel(new BorderLayout(0, 20));
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
-		mainPanel.setSize(WIDTH, MAIN_HEIGHT);
+		mainPanel.setSize(MAIN_WIDTH, MAIN_HEIGHT);
 		mainPanel.setFocusable(true);
 		mainPanel.add(topPanel, BorderLayout.NORTH);
 		mainPanel.add(middlePanel, BorderLayout.CENTER);
@@ -140,7 +123,7 @@ public class RemoteInterface extends JFrame {
 		this.add(mainPanel, BorderLayout.NORTH);
 		this.setJMenuBar(menuBar);
 		this.setTitle("VLC Remote");
-		this.setSize(WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
+		this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
 		this.setResizable(false);
 		this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		Runtime.getRuntime().addShutdownHook(new CleanupOnShutdown());
@@ -154,67 +137,16 @@ public class RemoteInterface extends JFrame {
 		}
 	}
 
-	private void initPlaylistArea() {
-		Map<Integer, SongItem> songMap = remote.getSongMap();
-
-		DefaultListModel<SongItem> playlist = new DefaultListModel<>();
-		songMap.values().stream().forEachOrdered(playlist::addElement);
-
-		playlistList = new JXList(playlist);
-		playlistList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-		playlistList.setAutoCreateRowSorter(true);
-
-		JScrollPane playlistScrollPane = new JScrollPane(
-				playlistList,
-				ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
-				ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
-		);
-
-		JLabel playlistTitle = new JLabel("Playlist");
-		playlistTitle.setFont(FONT.deriveFont(18f).deriveFont(UNDERLINE));
-		playlistTitle.setHorizontalAlignment(SwingConstants.CENTER);
-
-		//*
-		playlistClearSearchButton = new JButton("✖");
-		playlistClearSearchButton.setFont(new Font("Dingbats", 0, FONT.getSize()));
-		playlistClearSearchButton.setToolTipText("Clear the search");
-		playlistClearSearchButton.setForeground(Color.GRAY);
-		playlistClearSearchButton.setBackground(this.getBackground());
-		playlistClearSearchButton.setBorder(BorderFactory.createEmptyBorder());//*/
-
-		playlistSearchField = new JTextField(20);
-		JPanel playlistSearch = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-		playlistSearch.add(new JLabel("Search"));
-		playlistSearch.add(playlistSearchField);
-		//playlistSearch.add(playlistClearSearchButton);
-
-		JPanel playlistTop = new JPanel(new BorderLayout());
-		playlistTop.add(playlistTitle, BorderLayout.WEST);
-		playlistTop.add(playlistSearch, BorderLayout.EAST);
-
-		playSelected = new JButton("Play Selected");
-
-		playlistPanel = new JPanel(new BorderLayout(0, 10));
-		playlistPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-		playlistPanel.setPreferredSize(new Dimension(WIDTH, PLAYLIST_HEIGHT));
-		playlistPanel.add(playlistTop, BorderLayout.NORTH);
-		playlistPanel.add(playlistScrollPane, BorderLayout.CENTER);
-		playlistPanel.add(playSelected, BorderLayout.SOUTH);
-
-		playlistAreaShowing = false;
-
-	}
-
 	private void togglePlaylistArea(AWTEvent e) {
 		playlistAreaShowing = !playlistAreaShowing;
 
 		if (playlistAreaShowing) {
-			this.setSize(WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT + PLAYLIST_HEIGHT);
+			this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT + PLAYLIST_HEIGHT);
 			this.add(mainSeparator, BorderLayout.CENTER);
 			this.add(playlistPanel, BorderLayout.SOUTH);
 		}
 		else {
-			this.setSize(WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
+			this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
 			this.remove(mainSeparator);
 			this.remove(playlistPanel);
 		}
@@ -223,38 +155,8 @@ public class RemoteInterface extends JFrame {
 		togglePlaylistButton.setToolTipText(playlistAreaShowing ? "Hide playlist" : "Show playlist");
 	}
 
-	private void initMenu() {
-		menuBar = new JMenuBar();
-
-		JMenu tools = new JMenu("Tools");
-		tools.setMnemonic(VK_T);
-
-		JCheckBoxMenuItem debugBorders = new JCheckBoxMenuItem("Show debug borders");
-		JMenuItem updateDelayInput = new JMenuItem("Set update delay");
-		instantPause = new JCheckBoxMenuItem("Enable instant pause");
-		JMenuItem restartStream = new JMenuItem("Restart stream");
-		JMenuItem gotoPreferences = new JMenuItem("Show Preferences File");
-
-		tools.add(debugBorders);
-		tools.add(updateDelayInput);
-		tools.add(instantPause);
-		tools.add(restartStream);
-		tools.add(gotoPreferences);
-
-		menuBar.add(tools);
-		menuBar.setPreferredSize(new Dimension(WIDTH, MENUBAR_HEIGHT));
-
-		debugBorders.addActionListener(e -> debugBorderComponents(this, ((JCheckBoxMenuItem)e.getSource()).isSelected()));
-		updateDelayInput.addActionListener(this::setUpdateDelay);
-		instantPause.addActionListener(this::toggleInstantPause);
-		restartStream.addActionListener(e -> remote.restartStream());
-		gotoPreferences.addActionListener(this::viewPreferencesFile);
-	}
-
 	private void loadSettings() {
-		updateDelay = UserSettings.getInt("updateDelay", 1000);
-		instantPauseEnabled = UserSettings.getBoolean("instantPause", false);
-		instantPause.setSelected(instantPauseEnabled);
+		menuBar.loadSettings();
 	}
 
 	private void initTop() {
@@ -295,7 +197,7 @@ public class RemoteInterface extends JFrame {
 
 		topPanel = new JPanel(new BorderLayout(0, 10));
 		topPanel.setBorder(new EmptyBorder(MAIN_PADDING, 0, MAIN_PADDING, 0));
-		topPanel.setPreferredSize(new Dimension(WIDTH-20, 75));
+		topPanel.setPreferredSize(new Dimension(MAIN_WIDTH -20, 75));
 
 		topPanel.add(topPre1, BorderLayout.NORTH);
 		topPanel.add(topPre2, BorderLayout.SOUTH);
@@ -324,30 +226,30 @@ public class RemoteInterface extends JFrame {
 
 	private void initBottom() {
 
-		Dimension buttonSize = Icon.SIZE.getDim(1.25);
+		Dimension buttonSize = SimpleIcon.SIZE.getDim(1.25);
 
-		playPauseButton = new JButton(Icon.PLAY.get());
+		playPauseButton = new JButton(SimpleIcon.PLAY.get());
 		playPauseButton.setActionCommand("PLAY");
 
-		nextButton = new JButton(Icon.NEXT.get());
+		nextButton = new JButton(SimpleIcon.NEXT.get());
 		nextButton.setActionCommand("NEXT");
 		nextButton.setToolTipText(Command.NEXT.getDescription());
 
-		prevButton = new JButton(Icon.PREV.get());
+		prevButton = new JButton(SimpleIcon.PREV.get());
 		prevButton.setActionCommand("PREV");
 
-		repeatToggleButton = new JToggleButton(Icon.REPEAT.get());
+		repeatToggleButton = new JToggleButton(SimpleIcon.REPEAT.get());
 		repeatToggleButton.setActionCommand("TOGGLE_REPEAT");
 
-		loopToggleButton = new JToggleButton(Icon.LOOP.get());
+		loopToggleButton = new JToggleButton(SimpleIcon.LOOP.get());
 		loopToggleButton.setActionCommand("TOGGLE_LOOP");
 
-		shuffleToggleButton = new JToggleButton(Icon.SHUFFLE.get());
+		shuffleToggleButton = new JToggleButton(SimpleIcon.SHUFFLE.get());
 		shuffleToggleButton.setActionCommand("TOGGLE_RANDOM");
 
 		controlButtons = Arrays.asList(prevButton, playPauseButton, nextButton, repeatToggleButton, loopToggleButton, shuffleToggleButton);
 
-		togglePlaylistButton = new JToggleButton(Icon.PLAYLIST.get());
+		togglePlaylistButton = new JToggleButton(SimpleIcon.PLAYLIST.get());
 		togglePlaylistButton.setToolTipText("Show playlist");
 		togglePlaylistButton.setPreferredSize(buttonSize);
 
@@ -359,7 +261,7 @@ public class RemoteInterface extends JFrame {
 		});
 		bottomLeft.add(togglePlaylistButton);
 
-		volumeButton = new JButton(Icon.VOLUME_HIGH.get());
+		volumeButton = new JButton(SimpleIcon.VOLUME_HIGH.get());
 		volumeButton.setPreferredSize(buttonSize);
 		volumeSlider = new JSlider(0, 200, 100);
 		volumeSlider.setToolTipText("Click or drag to set volume; double click to reset");
@@ -398,9 +300,6 @@ public class RemoteInterface extends JFrame {
 
 	private void initActionListenersPost() {
 		togglePlaylistButton.addActionListener(this::togglePlaylistArea);
-		playSelected.addActionListener(this::switchSongToSelected);
-		playlistList.addMouseListener(new PlaylistMouseListener());
-		playlistSearchField.getDocument().addDocumentListener(new PlaylistSearchListener());
 	}
 
 	/* 	TODO create a menu to edit hotkeys. ask user to input a hotkey and use KeyStroke.getKeyStroke(SomeEvent e)
@@ -415,9 +314,9 @@ public class RemoteInterface extends JFrame {
 		g.registerHotkey(MEDIA_NEXT_TRACK, nextButton::doClick);
 		g.registerHotkey(MEDIA_PREV_TRACK, prevButton::doClick);
 
-		g.registerHotkey(VK_ADD,		Mod.NONE, playPauseButton::doClick);
-		g.registerHotkey(VK_MULTIPLY, 	Mod.NONE, nextButton::doClick);
-		g.registerHotkey(VK_DIVIDE, 	Mod.NONE, prevButton::doClick);
+		g.registerHotkey(VK_ADD,		NONE, playPauseButton::doClick);
+		g.registerHotkey(VK_MULTIPLY, 	NONE, nextButton::doClick);
+		g.registerHotkey(VK_DIVIDE, 	NONE, prevButton::doClick);
 	}
 
 	private void connectPressed(AWTEvent e) {
@@ -435,7 +334,7 @@ public class RemoteInterface extends JFrame {
 
 			controls.forEach(b -> b.setEnabled(true));
 
-			initPlaylistArea();
+			playlistPanel = new PlaylistPanel(this);
 			initActionListenersPost();
 			initHotkeys();
 
@@ -455,7 +354,7 @@ public class RemoteInterface extends JFrame {
 		if (!UserSettings.keyExists("httpPass") && UserSettings.getBoolean("saveHttpPass", true)) {
 
 			boolean savePass = JOptionPane.showConfirmDialog(this,
-					restrictDialogWidth("Save password in preferences?<br>WARNING: This saves in plain text."),
+					GuiUtils.restrictDialogWidth("Save password in preferences?<br>WARNING: This saves in plain text."),
 					"Save Password",
 					YES_NO_OPTION,
 					QUESTION_MESSAGE
@@ -491,7 +390,7 @@ public class RemoteInterface extends JFrame {
 		Arrays.fill(password, '0');
 	}
 
-	private void updateInterface() {
+	public void updateInterface() {
 		updateInterface(null);
 	}
 
@@ -500,11 +399,11 @@ public class RemoteInterface extends JFrame {
 		int volume = volumeSlider.getValue();
 		if (!volumeTextField.hasFocus())
 			volumeTextField.setText(volume + "%");
-		Icon volumeIcon =
-				muted ? Icon.VOLUME_OFF :
-				volume == 0 ? Icon.VOLUME_NONE:
-				volume < 100 ? Icon.VOLUME_LOW :
-				Icon.VOLUME_HIGH;
+		SimpleIcon volumeIcon =
+				muted ? SimpleIcon.VOLUME_OFF :
+				volume == 0 ? SimpleIcon.VOLUME_NONE:
+				volume < 100 ? SimpleIcon.VOLUME_LOW :
+				SimpleIcon.VOLUME_HIGH;
 
 		volumeButton.setIcon(volumeIcon.get());
 		volumeButton.setToolTipText("Click to " + (muted ? "unmute" : "mute"));
@@ -517,7 +416,7 @@ public class RemoteInterface extends JFrame {
 
 		if (!playPauseButton.getActionCommand().equals(newState)) {
 			playPauseButton.setActionCommand(newState);
-			playPauseButton.setIcon(Icon.valueOf(newState).get());
+			playPauseButton.setIcon(SimpleIcon.valueOf(newState).get());
 			playPauseButton.setToolTipText(Command.valueOf(newState).getDescription());
 		}
 
@@ -545,53 +444,36 @@ public class RemoteInterface extends JFrame {
 			titleLabel.setFont(FONT.deriveFont(MAX_TITLE_FONT_SIZE));
 
 			int length = Integer.parseInt(status.get("length"));
-			lengthLabel.setText(formatTime(length));
+			lengthLabel.setText(GuiUtils.formatTime(length));
 
-			playlistList.setSelectedIndex(
-					remote.transformPlaylistID(Integer.parseInt(status.get("currentID")))
-			);
-			int selected = playlistList.getSelectedIndex();
-			int size = playlistList.getModel().getSize();
-			int min = selected < 5 ? 0 : selected-5;
-			int max = selected > size-6 ? size-1 : selected+5;
-			Rectangle r = playlistList.getCellBounds(min, max);
-			playlistList.scrollRectToVisible(r);
+			playlistPanel.update(status);
 		}
 
 		int currentTime = Integer.parseInt(status.get("time"));
 		double positionPercent = Double.parseDouble(status.get("position"));
 
-		positionLabel.setText(formatTime(currentTime));
+		positionLabel.setText(GuiUtils.formatTime(currentTime));
 		progressBar.setValue((int) (positionPercent * progressBar.getMaximum()));
-	}
-
-	private void setUpdateDelay(AWTEvent e) {
-		String input =
-				JOptionPane.showInputDialog(this, "Set update delay (ms)", "Update Delay", INFORMATION_MESSAGE);
-		if (StringUtils.isNumeric(input)) {
-			int d =  Integer.parseInt(input);
-			updateLoop.cancel(true);
-			updateDelay = d;
-			startUpdateLoop();
-
-			UserSettings.putInt("updateDelay", d);
-		}
-		else
-			handleException(new IllegalArgumentException("Input must be a number"));
 	}
 
 	private void startUpdateLoop() {
 		updateLoop = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(
 				() -> updateInterface(remote.getStatus()),
-				0, updateDelay, TimeUnit.MILLISECONDS
+				0, UserSettings.getInt("updateDelay", 1000), TimeUnit.MILLISECONDS
 		);
+	}
+
+	public void restartUpdateLoop() {
+		if (!updateLoop.isCancelled())
+			updateLoop.cancel(true);
+		startUpdateLoop();
 	}
 
 	private void playPausePressed(ActionEvent e) {
 		// actual playing or pausing is handled by controlButtonPressed
 		// before the pause or play request goes through, stop or start the stream locally first
 
-		if (!instantPauseEnabled) return;
+		if (!UserSettings.getBoolean("instantPause", false)) return;
 
 		String cmd = e.getActionCommand();
 		if (cmd.equals("PLAY") && !remote.isPlayingStream())
@@ -652,34 +534,13 @@ public class RemoteInterface extends JFrame {
 		updateInterface();
 	}
 
-	private void switchSongToSelected(AWTEvent e) {
-		int index = ((SongItem)playlistList.getSelectedValue()).getId();
-		playlistSearchField.setText("");
-		remote.switchSong(index);
-		updateInterface();
-	}
-
-	private void viewPreferencesFile(AWTEvent e) {
-		try {
-			Runtime.getRuntime().exec("explorer.exe /select,"+UserSettings.getPrefsFile().getPath());
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		}
-	}
-
-	private void toggleInstantPause(ActionEvent e) {
-		instantPauseEnabled = ((JCheckBoxMenuItem)e.getSource()).isSelected();
-
-		UserSettings.putBoolean("instantPause", instantPauseEnabled);
-	}
-
 	private void clearFocus() {
 		mainPanel.requestFocus();
 	}
 
-	private void handleException(Throwable e) {
+	public void handleException(Throwable e) {
 		String text = "An error has occurred.<br><br>" + StringEscapeUtils.escapeHtml4(e.getMessage()) + "<br><br>Show the error?";
-		int showErrorInt = JOptionPane.showConfirmDialog(this, restrictDialogWidth(text, false), "Error", YES_NO_OPTION, ERROR_MESSAGE);
+		int showErrorInt = JOptionPane.showConfirmDialog(this, GuiUtils.restrictDialogWidth(text, false), "Error", YES_NO_OPTION, ERROR_MESSAGE);
 		if (showErrorInt == 0) {
 			String stackTrace = String.join("\n",
 					Stream.of(e.getStackTrace())
@@ -687,7 +548,7 @@ public class RemoteInterface extends JFrame {
 							.collect(Collectors.toList()));
 
 			JScrollPane pane = new JScrollPane(new JTextArea(stackTrace));
-			pane.setPreferredSize(new Dimension(WIDTH-100, MAX_HEIGHT-100));
+			pane.setPreferredSize(new Dimension(MAIN_WIDTH-100, MAX_HEIGHT-100));
 
 			pane.addHierarchyListener(a -> {
 				Window w = SwingUtilities.getWindowAncestor(pane);
@@ -707,16 +568,7 @@ public class RemoteInterface extends JFrame {
 	}
 
 	private void alert(String title, String text, @MagicConstant(intValues={INFORMATION_MESSAGE,WARNING_MESSAGE, ERROR_MESSAGE,QUESTION_MESSAGE,PLAIN_MESSAGE}) int messageType) {
-		JOptionPane.showMessageDialog(this, restrictDialogWidth(text), title, messageType);
-	}
-
-	private String restrictDialogWidth(String text, boolean escape) {
-		text = escape ? StringEscapeUtils.escapeHtml4(text) : text;
-		return String.format("<html><body><p style='width: %dpx'>%s</p></body></html>", WIDTH/2, text);
-	}
-
-	private String restrictDialogWidth(String text) {
-		return restrictDialogWidth(text, false);
+		JOptionPane.showMessageDialog(this, GuiUtils.restrictDialogWidth(text), title, messageType);
 	}
 
 	private class TitleResizeListener extends ComponentAdapter {
@@ -776,37 +628,6 @@ public class RemoteInterface extends JFrame {
 		}
 	}
 
-	private class PlaylistMouseListener extends MouseAdapter {
-		@Override
-		public void mouseClicked(MouseEvent e) {
-			if (e.getClickCount() == 2) {
-				switchSongToSelected(null);
-			}
-		}
-	}
-
-	private class PlaylistSearchListener implements DocumentListener {
-
-		@Override
-		public void insertUpdate(DocumentEvent e) { changedUpdate(e); }
-
-		@Override
-		public void removeUpdate(DocumentEvent e) { changedUpdate(e); }
-
-		@Override
-		public void changedUpdate(DocumentEvent e) {
-			playlistList.setRowFilter(new RowFilter<ListModel, Integer>() {
-				@Override
-				public boolean include(Entry<? extends ListModel, ? extends Integer> entry) {
-					String filterText = playlistSearchField.getText().trim();
-					return entry.getStringValue(0).toUpperCase()
-							.contains(filterText.toUpperCase())
-								|| filterText.isEmpty();
-				}
-			});
-		}
-	}
-
 	private class ControlsKeyListener implements KeyListener {
 
 		public void keyTyped(KeyEvent e) {}
@@ -826,93 +647,6 @@ public class RemoteInterface extends JFrame {
 				remote.stopStream();
 				remote.sendCommand(Command.PAUSE);
 			}
-		}
-	}
-
-	@SuppressWarnings("unused")
-	private static List<Component> getComponents(Container c) {
-		return Arrays.asList(c.getComponents());
-	}
-
-	private static String formatTime(int seconds) {
-		return DateTimeFormatter.ofPattern(seconds < 3600 ? "mm:ss" : "HH:mm:ss")
-				.withZone(ZoneId.of("UTC"))
-				.format(Instant.ofEpochMilli((long)(seconds*1000)));
-	}
-
-	private static void debugBorderComponents(Container con, boolean show) {
-		Stream.of(con.getComponents())
-				.filter(c -> c instanceof JComponent)
-				.map(c -> (JComponent)c)
-				.forEach(c -> {
-					if (show) {
-						Border red = BorderFactory.createLineBorder(Color.red);
-						Border old = c.getBorder();
-						if (old == null)
-							c.setBorder(red);
-						else
-							c.setBorder(new CompoundBorder(red, old));
-					}
-					else {
-						if (c.getBorder() instanceof CompoundBorder)
-							c.setBorder(((CompoundBorder) c.getBorder()).getInsideBorder());
-						else
-							c.setBorder(null);
-					}
-					if (c instanceof JScrollPane) return;
-					debugBorderComponents(c, show);
-				});
-	}
-
-	@SuppressWarnings("unused")
-	private enum Icon {
-		NEXT,
-		PREV,
-		PLAY,
-		PAUSE,
-		REPEAT,
-		LOOP,
-		SHUFFLE,
-		VOLUME_HIGH,
-		VOLUME_LOW,
-		VOLUME_NONE,
-		VOLUME_OFF,
-		PLAYLIST,
-		SIZE (true);
-
-		private ImageIcon imageIcon;
-		private int ICON_SIZE = 24;
-		private boolean isSize;
-
-		Icon() {
-			this(false);
-		}
-
-		Icon(boolean isSize) {
-			this.isSize = isSize;
-			if (!isSize) {
-				String file = String.format("icons/%s.png", name().toLowerCase());
-				imageIcon = new ImageIcon(getClass().getResource(file));
-				imageIcon.setImage(imageIcon.getImage().getScaledInstance(ICON_SIZE, ICON_SIZE, Image.SCALE_SMOOTH));
-			}
-		}
-
-		private ImageIcon get() {
-			if (isSize)
-				return null;
-			else
-				return imageIcon;
-		}
-
-		private Dimension getDim(double scale) {
-			if (isSize)
-				return  new Dimension((int) (ICON_SIZE * scale), (int) (ICON_SIZE * scale));
-			else
-				return null;
-		}
-
-		private Dimension getDim() {
-			return getDim(1);
 		}
 	}
 
