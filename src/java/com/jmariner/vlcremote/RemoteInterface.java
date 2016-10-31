@@ -1,10 +1,7 @@
 package com.jmariner.vlcremote;
 
 import com.jmariner.vlcremote.MyVLCRemote.Command;
-import com.jmariner.vlcremote.components.LoginPanel;
-import com.jmariner.vlcremote.components.MainMenuBar;
-import com.jmariner.vlcremote.components.PlaylistPanel;
-import com.jmariner.vlcremote.components.StatusPanel;
+import com.jmariner.vlcremote.components.*;
 import com.jmariner.vlcremote.util.*;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.AccessLevel;
@@ -47,15 +44,13 @@ public class RemoteInterface extends JFrame {
 	private MainMenuBar menuBar;
 
 	private JPanel mainPanel;
-	private JPanel middlePanel, bottomPanel;
+	private JPanel bottomPanel;
 	private LoginPanel loginPanel;
 	private StatusPanel statusPanel;
+	private ProgressPanel progressPanel;
 	private JSeparator mainSeparator;
 
 	private PlaylistPanel playlistPanel;
-
-	private JLabel positionLabel, lengthLabel;
-	private JProgressBar progressBar;
 
 	private JButton nextButton, playPauseButton, prevButton;
 	private JToggleButton repeatToggleButton, loopToggleButton, shuffleToggleButton;
@@ -65,8 +60,9 @@ public class RemoteInterface extends JFrame {
 	private JSlider volumeSlider;
 	private JTextField volumeTextField;
 
-	private List<AbstractButton> controlButtons = new ArrayList<>();
-	private List<JComponent> controls = new ArrayList<>();
+	private List<AbstractButton> vlcControlButtons = new ArrayList<>();
+	@Getter
+	private List<JComponent> controlComponents = new ArrayList<>();
 
 	private ScheduledFuture<?> updateLoop;
 
@@ -95,19 +91,19 @@ public class RemoteInterface extends JFrame {
 		menuBar = new MainMenuBar(this);
 		loginPanel = new LoginPanel(this);
 		statusPanel = new StatusPanel();
-		initMiddle();
+		progressPanel = new ProgressPanel(this);
 		initBottom();
 
 		initActionListeners();
 
-		controls.forEach(c -> c.setEnabled(false));
+		controlComponents.forEach(c -> c.setEnabled(false));
 
 		mainPanel = new JPanel(new BorderLayout(0, 20));
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
 		mainPanel.setSize(MAIN_WIDTH, MAIN_HEIGHT);
 		mainPanel.setFocusable(true);
 		mainPanel.add(loginPanel, BorderLayout.NORTH);
-		mainPanel.add(middlePanel, BorderLayout.CENTER);
+		mainPanel.add(progressPanel, BorderLayout.CENTER);
 		mainPanel.add(bottomPanel, BorderLayout.SOUTH);
 
 		mainSeparator = new JSeparator();
@@ -153,25 +149,6 @@ public class RemoteInterface extends JFrame {
 		loginPanel.loadSettings();
 	}
 
-	private void initMiddle() {
-		positionLabel = new JLabel("00:00:00");
-		progressBar = new JProgressBar(0, (int) Math.pow(10, 6));
-		lengthLabel = new JLabel("00:00:00");
-
-		Dimension d = new Dimension(66, 25);
-		positionLabel.setPreferredSize(d);
-		positionLabel.setHorizontalAlignment(SwingConstants.CENTER);
-		lengthLabel.setPreferredSize(d);
-		lengthLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-		middlePanel = new JPanel(new BorderLayout(MAIN_PADDING, 0), true);
-		middlePanel.add(positionLabel, BorderLayout.WEST);
-		middlePanel.add(progressBar, BorderLayout.CENTER);
-		middlePanel.add(lengthLabel, BorderLayout.EAST);
-
-		controls.add(progressBar);
-	}
-
 	private void initBottom() {
 
 		Dimension buttonSize = GuiUtils.squareDim((int) (SimpleIcon.ICON_SIZE * 1.25));
@@ -194,14 +171,15 @@ public class RemoteInterface extends JFrame {
 		shuffleToggleButton = new JToggleButton(SimpleIcon.SHUFFLE.get());
 		shuffleToggleButton.setActionCommand("TOGGLE_RANDOM");
 
-		controlButtons = Arrays.asList(prevButton, playPauseButton, nextButton, repeatToggleButton, loopToggleButton, shuffleToggleButton);
+		vlcControlButtons = Arrays.asList(prevButton, playPauseButton, nextButton,
+				repeatToggleButton, loopToggleButton, shuffleToggleButton);
 
 		togglePlaylistButton = new JToggleButton(SimpleIcon.PLAYLIST.get());
 		togglePlaylistButton.setToolTipText("Show playlist");
 		togglePlaylistButton.setPreferredSize(buttonSize);
 
 		JPanel bottomLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-		controlButtons.stream().forEachOrdered(b -> {
+		vlcControlButtons.stream().forEachOrdered(b -> {
 			b.setPreferredSize(buttonSize);
 			b.setToolTipText(Command.valueOf(b.getActionCommand()).getDescription());
 			bottomLeft.add(b);
@@ -215,9 +193,9 @@ public class RemoteInterface extends JFrame {
 		volumeTextField = new JTextField("100%", 5);
 		volumeTextField.setToolTipText("Enter volume from 0 to 200 percent");
 
-		controls.add(togglePlaylistButton);
-		controls.addAll(controlButtons);
-		controls.addAll(Arrays.asList(volumeButton, volumeSlider, volumeTextField));
+		controlComponents.add(togglePlaylistButton);
+		controlComponents.addAll(vlcControlButtons);
+		controlComponents.addAll(Arrays.asList(volumeButton, volumeSlider, volumeTextField));
 
 		JPanel bottomRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
 		bottomRight.add(volumeButton);
@@ -231,11 +209,9 @@ public class RemoteInterface extends JFrame {
 
 	private void initActionListeners() {
 
-		progressBar.addMouseListener(new ProgressBarMouseListener());
-
 		playPauseButton.addActionListener(this::playPausePressed);
-		controlButtons.forEach(b -> b.addActionListener(this::controlButtonPressed));
-		controls.forEach(c -> c.addKeyListener(new ControlsKeyListener()));
+		vlcControlButtons.forEach(b -> b.addActionListener(this::controlButtonPressed));
+		controlComponents.forEach(c -> c.addKeyListener(new ControlsKeyListener()));
 
 		VolumeSliderMouseListener listener = new VolumeSliderMouseListener();
 		volumeSlider.addMouseListener(listener);
@@ -274,7 +250,7 @@ public class RemoteInterface extends JFrame {
 
 			mainPanel.add(statusPanel, BorderLayout.NORTH);
 
-			controls.forEach(b -> b.setEnabled(true));
+			controlComponents.forEach(b -> b.setEnabled(true));
 
 			playlistPanel = new PlaylistPanel(this);
 			initHotkeys();
@@ -361,19 +337,12 @@ public class RemoteInterface extends JFrame {
 
 		if (!statusPanel.getTitle().equals(text)) { // if we're on a new song than before
 			statusPanel.setTitle(text);
-
-			int length = status.getLength();
-			lengthLabel.setText(GuiUtils.formatTime(length));
-
+			progressPanel.updateLength(status);
 			playlistPanel.update(status);
 		}
 
-		int currentTime = status.getTime();
-		double positionPercent = status.getPosition();
+		progressPanel.update(status);
 
-		positionLabel.setText(GuiUtils.formatTime(currentTime));
-		progressBar.setValue((int) (positionPercent * progressBar.getMaximum()));
-		
 	}
 
 	private void startUpdateLoop() {
@@ -521,19 +490,6 @@ public class RemoteInterface extends JFrame {
 
 				volumeSlider.setValue(newValue);
 				updateInterface();
-			}
-		}
-	}
-
-	private class ProgressBarMouseListener extends MouseAdapter {
-		@Override
-		public void mouseClicked(MouseEvent e) {
-			if (progressBar.isEnabled()) {
-				double percent = e.getPoint().x / ((double) progressBar.getWidth());
-				int newVal = (int) (progressBar.getMinimum() + ((progressBar.getMaximum() - progressBar.getMinimum()) * percent));
-				progressBar.setValue(newVal);
-				VLCStatus status = remote.sendCommand(Command.SEEK_TO, (percent * 100) + "%");
-				updateInterface(status);
 			}
 		}
 	}

@@ -396,7 +396,7 @@ public class MyVLCRemote {
 
 	@Getter
 	@AllArgsConstructor
-	enum Command {
+	public enum Command {
 		PLAY			("pl_play", 	"Play: Start or resume playback"),
 		PAUSE			("pl_pause", 	"Pause: Pause playback"),
 		STOP			("pl_stop", 	"Stop: Stop playback"),
