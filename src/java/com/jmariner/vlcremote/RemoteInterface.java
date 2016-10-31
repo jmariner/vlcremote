@@ -75,7 +75,7 @@ public class RemoteInterface extends JFrame {
 
 	// this is to create a NullPointerException if i try using the superclass's HEIGHT value of 1
 	@SuppressWarnings("unused")
-	private final Object HEIGHT = null;
+	private static final Object HEIGHT = null;
 
 	public RemoteInterface() {
 
@@ -174,7 +174,7 @@ public class RemoteInterface extends JFrame {
 
 	private void initBottom() {
 
-		Dimension buttonSize = SimpleIcon.SIZE.getDim(1.25);
+		Dimension buttonSize = GuiUtils.squareDim((int) (SimpleIcon.ICON_SIZE * 1.25));
 
 		playPauseButton = new JButton(SimpleIcon.PLAY.get());
 		playPauseButton.setActionCommand("PLAY");
@@ -297,7 +297,7 @@ public class RemoteInterface extends JFrame {
 		);
 	}
 
-	public void updateInterface() {
+	private void updateInterface() {
 		updateInterface(null);
 	}
 

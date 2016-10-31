@@ -54,4 +54,8 @@ public class GuiUtils {
 				.format(Instant.ofEpochMilli((long)(seconds*1000)));
 	}
 
+	public static Dimension squareDim(int size) {
+		return new Dimension(size, size);
+	}
+
 }

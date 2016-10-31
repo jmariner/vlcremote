@@ -18,7 +18,10 @@ import org.apache.http.conn.ConnectTimeoutException;
 import javax.sound.sampled.*;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.*;
+import java.net.ConnectException;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -89,7 +92,7 @@ public class MyVLCRemote {
 		return songMap.get(getStatus().getCurrentID());
 	}
 
-	public void playStream(int msDelay) {
+	private void playStream(int msDelay) {
 
 		Thread playbackThread = new Thread(() -> {
 			if (msDelay > 0) {
@@ -268,7 +271,7 @@ public class MyVLCRemote {
 		return null;
 	}
 
-	public List<Map<String, String>> getPlaylist() {
+	private List<Map<String, String>> getPlaylist() {
 		return parsePlaylistJson(connect("custom/playlist.json"));
 	}
 
@@ -295,7 +298,7 @@ public class MyVLCRemote {
 		return sendCommand(Command.SET_VOLUME, ""+(percentVolume * 256));
 	}
 
-	public VLCStatus switchSongZeroBased(int zeroBasedID) {
+	private VLCStatus switchSongZeroBased(int zeroBasedID) {
 		if (zeroBasedID < 0)
 			zeroBasedID = 0;
 		if (zeroBasedID > playlistLength-1)
@@ -308,7 +311,7 @@ public class MyVLCRemote {
 		return switchSongZeroBased(transformPlaylistID(playlistID));
 	}
 
-	public int transformZeroBasedID(int zeroBasedSongID) {
+	private int transformZeroBasedID(int zeroBasedSongID) {
 		return zeroBasedSongID + firstID;
 	}
 
