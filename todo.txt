@@ -2,16 +2,15 @@ global keyboard shortcuts
     menu to change local and global keyboard shortcuts, just like VLC
     disable repeated hotkey presses when holding down key
 
-option to set default modes (playing/paused, looping/repeating/neither, shuffling, and maybe volume) to be set on load
-option to favorite a particular song
-
 option to only shuffle/loop through filtered song list (may not be easy, will need to wait for song to change normally and then switch the song again to the next song in the filtered list, or to a random one from that list if shuffle is on. maybe find a way to handle it from VLC?)
-
-maybe generate a list of songs using a different language and have VLC load the list form a text file? as long as the web interface allows editing items in the playlist, this would allow for ^^ to work
 
 EQ editor? does EQ even work over the stream, or can it be done locally?
 
-button to toggle table view / list view for playlist
+button to toggle table view / list view for playlist (maybe wait for a way to get song metadata through vlc; only things we have currently are title, artist, and duration. album is containing folder which is a bit hacky)
 
 ***
 switch to using VLC's media library function, where multiple folders can be added and swapped between. need to rewrite playlist parser to account for this, as well as keep track of each different playlist/folder using a list or map
+
+UserSettings: *** TODO this next
+option to set default modes (playing/paused, looping/repeating/neither, shuffling, and maybe volume) to be set on load
+option to favorite a particular song
