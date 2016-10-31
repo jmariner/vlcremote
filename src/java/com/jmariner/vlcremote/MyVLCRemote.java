@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.jmariner.vlcremote.util.VLCStatus;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
@@ -27,6 +28,8 @@ import java.util.stream.Stream;
 
 @Slf4j
 public class MyVLCRemote {
+
+	private VLCStatus status;
 
 	private String baseURL;
 	private String streamURL;
@@ -59,6 +62,8 @@ public class MyVLCRemote {
 
 		loadSongList();
 
+		status = new VLCStatus();
+
 	}
 
 	public MyVLCRemote(String host, int webPort, String password, int streamPort) {
@@ -81,7 +86,7 @@ public class MyVLCRemote {
 	}
 	
 	public SongItem getCurrentSong() {
-		return songMap.get(getStatus().get("currentID"));
+		return songMap.get(getStatus().getCurrentID());
 	}
 
 	public void playStream(int msDelay) {
@@ -195,7 +200,6 @@ public class MyVLCRemote {
 					if (playbackVolume < 0) playbackVolume = 0;
 					gainControl.setValue(convertVolume(playbackVolume));
 				}
-				//log.info(gainControl.getValue()+"");
 
 			}
 
@@ -268,29 +272,30 @@ public class MyVLCRemote {
 		return parsePlaylistJson(connect("custom/playlist.json"));
 	}
 
-	public Map<String, String> getStatus() {
-		return parseStatusJson(connect("requests/status.json"));
+	public VLCStatus getStatus() {
+		status.update(parseStatusJson(connect("requests/status.json")));
+		return status;
 	}
 
-	public Map<String, String> sendCommand(Command cmd) {
+	public VLCStatus sendCommand(Command cmd) {
 		return sendCommand(cmd, null);
 	}
 
-	public Map<String, String> sendCommand(Command cmd, String val) {
+	public VLCStatus sendCommand(Command cmd, String val) {
 
 		String append = val == null ? "" : String.format("&%s=%s", cmd.getParamName(), encodeUrlParam(val));
 		connect("requests/status.json?command=" + cmd + append);
 		return getStatus();
 	}
 
-	public Map<String, String> setSourceVolume(double percentVolume) {
+	public VLCStatus setSourceVolume(double percentVolume) {
 		if (percentVolume < 0) percentVolume = 0;
 		if (percentVolume > 1.25) percentVolume = 1.25;
 
 		return sendCommand(Command.SET_VOLUME, ""+(percentVolume * 256));
 	}
 
-	public Map<String, String> switchSongZeroBased(int zeroBasedID) {
+	public VLCStatus switchSongZeroBased(int zeroBasedID) {
 		if (zeroBasedID < 0)
 			zeroBasedID = 0;
 		if (zeroBasedID > playlistLength-1)
@@ -299,7 +304,7 @@ public class MyVLCRemote {
 		return sendCommand(Command.PLAY_ITEM, ""+transformZeroBasedID(zeroBasedID));
 	}
 
-	public Map<String, String> switchSong(int playlistID) {
+	public VLCStatus switchSong(int playlistID) {
 		return switchSongZeroBased(transformPlaylistID(playlistID));
 	}
 
@@ -380,15 +385,6 @@ public class MyVLCRemote {
 	private static String encodeUrlParam(String s) {
 		try {
 			return URLEncoder.encode(s, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
-
-	private static String decodeUrlParam(String s) {
-		try {
-			return URLDecoder.decode(s, "UTF-8");
 		} catch (UnsupportedEncodingException e) {
 			e.printStackTrace();
 			return null;

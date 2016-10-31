@@ -2,7 +2,9 @@ package com.jmariner.vlcremote.components;
 
 import com.jmariner.vlcremote.RemoteInterface;
 import com.jmariner.vlcremote.SongItem;
+import com.jmariner.vlcremote.util.VLCStatus;
 import org.jdesktop.swingx.JXList;
+import org.jdesktop.swingx.sort.ListSortController;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -23,6 +25,8 @@ public class PlaylistPanel extends JPanel {
 	private JTextField searchField;
 	private JButton playSelected;
 
+	private ListSortController<ListModel<SongItem>> sorter;
+
 	public PlaylistPanel(RemoteInterface gui) {
 		super(new BorderLayout(0, 10));
 		this.gui = gui;
@@ -38,7 +42,9 @@ public class PlaylistPanel extends JPanel {
 
 		list = new JXList(playlist);
 		list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-		list.setAutoCreateRowSorter(true);
+
+		sorter = new ListSortController<>(playlist);
+		list.setRowSorter(sorter);
 
 		JScrollPane scrollPane = new JScrollPane(
 				list,
@@ -92,9 +98,9 @@ public class PlaylistPanel extends JPanel {
 		gui.updateInterface(gui.getRemote().getStatus());
 	}
 
-	public void update(Map<String, String> status) {
+	public void update(VLCStatus status) {
 		list.setSelectedIndex( // TODO setSelectedValue doesn't work here for some reason
-				gui.getRemote().transformPlaylistID(Integer.parseInt(status.get("currentID")))
+				gui.getRemote().transformPlaylistID(status.getCurrentID())
 		);
 		int selected = list.getSelectedIndex();
 		int size = list.getModel().getSize();
@@ -114,9 +120,9 @@ public class PlaylistPanel extends JPanel {
 
 		@Override
 		public void changedUpdate(DocumentEvent e) {
-			list.setRowFilter(new RowFilter<ListModel, Integer>() {
+			sorter.setRowFilter(new RowFilter<ListModel<SongItem>, Integer>() {
 				@Override
-				public boolean include(Entry<? extends ListModel, ? extends Integer> entry) {
+				public boolean include(Entry<? extends ListModel<SongItem>, ? extends Integer> entry) {
 					String filterText = searchField.getText().trim();
 					return entry.getStringValue(0).toUpperCase()
 							.contains(filterText.toUpperCase())

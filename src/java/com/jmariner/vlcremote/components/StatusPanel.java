@@ -1,7 +1,5 @@
 package com.jmariner.vlcremote.components;
 
-import com.jmariner.vlcremote.RemoteInterface;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ComponentAdapter;
@@ -11,14 +9,10 @@ import static com.jmariner.vlcremote.util.Constants.*;
 
 public class StatusPanel extends JPanel {
 
-	private RemoteInterface gui;
-
 	private JLabel titleLabel;
 
-	public StatusPanel(RemoteInterface gui) {
+	public StatusPanel() {
 		super(new BorderLayout(0, MAIN_PADDING));
-
-		this.gui = gui;
 
 		init();
 	}

@@ -5,10 +5,7 @@ import com.jmariner.vlcremote.components.LoginPanel;
 import com.jmariner.vlcremote.components.MainMenuBar;
 import com.jmariner.vlcremote.components.PlaylistPanel;
 import com.jmariner.vlcremote.components.StatusPanel;
-import com.jmariner.vlcremote.util.SimpleIcon;
-import com.jmariner.vlcremote.util.GlobalHotkeyListener;
-import com.jmariner.vlcremote.util.GuiUtils;
-import com.jmariner.vlcremote.util.UserSettings;
+import com.jmariner.vlcremote.util.*;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -97,7 +94,7 @@ public class RemoteInterface extends JFrame {
 
 		menuBar = new MainMenuBar(this);
 		loginPanel = new LoginPanel(this);
-		statusPanel = new StatusPanel(this);
+		statusPanel = new StatusPanel();
 		initMiddle();
 		initBottom();
 
@@ -167,7 +164,7 @@ public class RemoteInterface extends JFrame {
 		lengthLabel.setPreferredSize(d);
 		lengthLabel.setHorizontalAlignment(SwingConstants.CENTER);
 
-		middlePanel = new JPanel(new BorderLayout(10, 0), true);
+		middlePanel = new JPanel(new BorderLayout(MAIN_PADDING, 0), true);
 		middlePanel.add(positionLabel, BorderLayout.WEST);
 		middlePanel.add(progressBar, BorderLayout.CENTER);
 		middlePanel.add(lengthLabel, BorderLayout.EAST);
@@ -304,7 +301,7 @@ public class RemoteInterface extends JFrame {
 		updateInterface(null);
 	}
 
-	public void updateInterface(Map<String, String> status) {
+	public void updateInterface(VLCStatus status) {
 
 		int volume = volumeSlider.getValue();
 		if (!volumeTextField.hasFocus())
@@ -320,9 +317,22 @@ public class RemoteInterface extends JFrame {
 
 		if (status == null) return; // everything past here requires status
 
-		String state = status.get("state");
-		String newState = state.equals("playing") ? "PAUSE" : state.equals("paused") ? "PLAY" : null;
-		assert newState != null;
+		String newState = null;
+		switch (status.getState()) {
+			case PLAYING:
+				newState = "PAUSE";
+				break;
+			case PAUSED:
+				newState = "PLAY";
+				break;
+			case STOPPED:
+			case UNKNOWN:
+				newState = null;
+				break;
+		}
+
+		// newState is null if VLC is neither playing nor paused
+		if (newState == null) return;
 
 		if (!playPauseButton.getActionCommand().equals(newState)) {
 			playPauseButton.setActionCommand(newState);
@@ -330,9 +340,9 @@ public class RemoteInterface extends JFrame {
 			playPauseButton.setToolTipText(Command.valueOf(newState).getDescription());
 		}
 
-		boolean loop = status.get("loop").equals("true");
-		boolean repeat = status.get("repeat").equals("true");
-		boolean shuffle = status.get("random").equals("true");
+		boolean loop = status.isLoop();
+		boolean repeat = status.isRepeat();
+		boolean shuffle = status.isShuffle();
 
 		if (loopToggleButton.isSelected() != loop)
 			loopToggleButton.setSelected(loop);
@@ -341,9 +351,9 @@ public class RemoteInterface extends JFrame {
 		if (shuffleToggleButton.isSelected() != shuffle)
 			shuffleToggleButton.setSelected(shuffle);
 
-		String filename = status.get("filename");
-		String artist = status.get("artist");
-		String title = status.get("title");
+		String filename = status.getFilename();
+		String artist = status.getArtist();
+		String title = status.getTitle();
 		String text =
 				title == null ? filename :
 				artist == null ? title :
@@ -352,14 +362,14 @@ public class RemoteInterface extends JFrame {
 		if (!statusPanel.getTitle().equals(text)) { // if we're on a new song than before
 			statusPanel.setTitle(text);
 
-			int length = Integer.parseInt(status.get("length"));
+			int length = status.getLength();
 			lengthLabel.setText(GuiUtils.formatTime(length));
 
 			playlistPanel.update(status);
 		}
 
-		int currentTime = Integer.parseInt(status.get("time"));
-		double positionPercent = Double.parseDouble(status.get("position"));
+		int currentTime = status.getTime();
+		double positionPercent = status.getPosition();
 
 		positionLabel.setText(GuiUtils.formatTime(currentTime));
 		progressBar.setValue((int) (positionPercent * progressBar.getMaximum()));
@@ -398,7 +408,7 @@ public class RemoteInterface extends JFrame {
 		String cmd = e.getActionCommand();
 		assert Command.keys().contains(cmd);
 
-		Map<String, String> status = remote.sendCommand(Command.valueOf(cmd));
+		VLCStatus status = remote.sendCommand(Command.valueOf(cmd));
 		updateInterface(status);
 	}
 
@@ -522,7 +532,7 @@ public class RemoteInterface extends JFrame {
 				double percent = e.getPoint().x / ((double) progressBar.getWidth());
 				int newVal = (int) (progressBar.getMinimum() + ((progressBar.getMaximum() - progressBar.getMinimum()) * percent));
 				progressBar.setValue(newVal);
-				Map<String, String> status = remote.sendCommand(Command.SEEK_TO, (percent * 100) + "%");
+				VLCStatus status = remote.sendCommand(Command.SEEK_TO, (percent * 100) + "%");
 				updateInterface(status);
 			}
 		}
