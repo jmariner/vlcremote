@@ -3,3 +3,6 @@
 /stream*.bat
 /*.iml
 /target/
+.classpath
+.project
+/.settings/

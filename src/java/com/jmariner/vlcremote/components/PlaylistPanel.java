@@ -89,11 +89,11 @@ public class PlaylistPanel extends JPanel {
 		int index = ((SongItem)list.getSelectedValue()).getId();
 		searchField.setText("");
 		gui.getRemote().switchSong(index);
-		gui.updateInterface();
+		gui.updateInterface(gui.getRemote().getStatus());
 	}
 
 	public void update(Map<String, String> status) {
-		list.setSelectedIndex(
+		list.setSelectedIndex( // TODO setSelectedValue doesn't work here for some reason
 				gui.getRemote().transformPlaylistID(Integer.parseInt(status.get("currentID")))
 		);
 		int selected = list.getSelectedIndex();

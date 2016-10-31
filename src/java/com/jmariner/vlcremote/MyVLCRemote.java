@@ -79,6 +79,10 @@ public class MyVLCRemote {
 
 		});
 	}
+	
+	public SongItem getCurrentSong() {
+		return songMap.get(getStatus().get("currentID"));
+	}
 
 	public void playStream(int msDelay) {
 

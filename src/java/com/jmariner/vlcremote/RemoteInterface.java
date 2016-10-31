@@ -340,7 +340,8 @@ public class RemoteInterface extends JFrame {
 
 			remote.setSourceVolume(1);
 			remote.sendCommand(Command.PLAY);
-			updateInterface(remote.getStatus());
+			updateInterface(remote.getStatus(), true);
+			loadPlaybackOptions();
 			startUpdateLoop();
 			remote.playStream();
 		}
@@ -377,6 +378,21 @@ public class RemoteInterface extends JFrame {
 			UserSettings.putBoolean("autoconnect", autoconnect);
 		}
 	}
+	
+	private void loadPlaybackOptions() {
+		// after initial interface update, so button states are accurate to current options
+		
+		if (shuffleToggleButton.isSelected() != UserSettings.getBoolean("shuffle", false))
+			shuffleToggleButton.doClick();
+		if (loopToggleButton.isSelected() != UserSettings.getBoolean("loop", false))
+			loopToggleButton.doClick();
+		if (repeatToggleButton.isSelected() != UserSettings.getBoolean("repeat", false))
+			repeatToggleButton.doClick();
+		if (volumeButton.isSelected() != UserSettings.getBoolean("muted", false))
+			volumeButton.doClick();
+		
+		volumeSlider.setValue(UserSettings.getInt("volume", 100));
+	}
 
 	private void initRemote() {
 		char[] password = passwordField.getPassword();
@@ -393,8 +409,12 @@ public class RemoteInterface extends JFrame {
 	public void updateInterface() {
 		updateInterface(null);
 	}
+	
+	public void updateInterface(Map<String, String> status) {
+		updateInterface(status, false);
+	}
 
-	private void updateInterface(Map<String, String> status) {
+	private void updateInterface(Map<String, String> status, boolean firstRun) {
 
 		int volume = volumeSlider.getValue();
 		if (!volumeTextField.hasFocus())
@@ -454,6 +474,17 @@ public class RemoteInterface extends JFrame {
 
 		positionLabel.setText(GuiUtils.formatTime(currentTime));
 		progressBar.setValue((int) (positionPercent * progressBar.getMaximum()));
+		
+		if (!firstRun)
+			savePlaybackOptions();
+	}
+	
+	private void savePlaybackOptions() {
+		UserSettings.putBoolean("shuffle", shuffleToggleButton.isSelected());
+		UserSettings.putBoolean("repeat", repeatToggleButton.isSelected());
+		UserSettings.putBoolean("loop", loopToggleButton.isSelected());
+		UserSettings.putBoolean("muted", muted);
+		UserSettings.putInt("volume", volumeSlider.getValue());
 	}
 
 	private void startUpdateLoop() {
@@ -622,8 +653,8 @@ public class RemoteInterface extends JFrame {
 				double percent = e.getPoint().x / ((double) progressBar.getWidth());
 				int newVal = (int) (progressBar.getMinimum() + ((progressBar.getMaximum() - progressBar.getMinimum()) * percent));
 				progressBar.setValue(newVal);
-				remote.sendCommand(Command.SEEK_TO, (percent * 100) + "%");
-				updateInterface();
+				Map<String, String> status = remote.sendCommand(Command.SEEK_TO, (percent * 100) + "%");
+				updateInterface(status);
 			}
 		}
 	}
