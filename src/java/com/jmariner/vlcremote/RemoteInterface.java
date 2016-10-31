@@ -1,8 +1,10 @@
 package com.jmariner.vlcremote;
 
 import com.jmariner.vlcremote.MyVLCRemote.Command;
+import com.jmariner.vlcremote.components.LoginPanel;
 import com.jmariner.vlcremote.components.MainMenuBar;
 import com.jmariner.vlcremote.components.PlaylistPanel;
+import com.jmariner.vlcremote.components.StatusPanel;
 import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.GlobalHotkeyListener;
 import com.jmariner.vlcremote.util.GuiUtils;
@@ -48,18 +50,12 @@ public class RemoteInterface extends JFrame {
 	private MainMenuBar menuBar;
 
 	private JPanel mainPanel;
-	private JPanel topPanel, middlePanel, bottomPanel;
+	private JPanel middlePanel, bottomPanel;
+	private LoginPanel loginPanel;
+	private StatusPanel statusPanel;
 	private JSeparator mainSeparator;
 
 	private PlaylistPanel playlistPanel;
-
-	private JPanel topPre1, topPre2, topPost1, topPost2;
-
-	private JLabel titleLabel;
-
-	private JTextField hostField, webPortField, streamPortField;
-	private JPasswordField passwordField;
-	private JButton connectButton;
 
 	private JLabel positionLabel, lengthLabel;
 	private JProgressBar progressBar;
@@ -72,11 +68,10 @@ public class RemoteInterface extends JFrame {
 	private JSlider volumeSlider;
 	private JTextField volumeTextField;
 
-	private List<JTextField> textFields = new ArrayList<>();
 	private List<AbstractButton> controlButtons = new ArrayList<>();
 	private List<JComponent> controls = new ArrayList<>();
 
-	private ScheduledFuture updateLoop;
+	private ScheduledFuture<?> updateLoop;
 
 	@Getter(AccessLevel.PUBLIC) @Setter(AccessLevel.PUBLIC)
 	private boolean connected, muted, playlistAreaShowing;
@@ -101,7 +96,8 @@ public class RemoteInterface extends JFrame {
 		}
 
 		menuBar = new MainMenuBar(this);
-		initTop();
+		loginPanel = new LoginPanel(this);
+		statusPanel = new StatusPanel(this);
 		initMiddle();
 		initBottom();
 
@@ -113,7 +109,7 @@ public class RemoteInterface extends JFrame {
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
 		mainPanel.setSize(MAIN_WIDTH, MAIN_HEIGHT);
 		mainPanel.setFocusable(true);
-		mainPanel.add(topPanel, BorderLayout.NORTH);
+		mainPanel.add(loginPanel, BorderLayout.NORTH);
 		mainPanel.add(middlePanel, BorderLayout.CENTER);
 		mainPanel.add(bottomPanel, BorderLayout.SOUTH);
 
@@ -131,7 +127,7 @@ public class RemoteInterface extends JFrame {
 		loadSettings();
 		if (UserSettings.getBoolean("autoconnect", false)) {
 			if (UserSettings.keyExists("httpPass"))
-				connectButton.doClick();
+				loginPanel.connectPressed(null);
 			else
 				UserSettings.getRoot().remove("autoconnect");
 		}
@@ -157,58 +153,13 @@ public class RemoteInterface extends JFrame {
 
 	private void loadSettings() {
 		menuBar.loadSettings();
-	}
-
-	private void initTop() {
-
-		hostField = new JTextField(UserSettings.get("httpHost", ""), 20);
-		webPortField = new JTextField(UserSettings.get("httpPort", ""), 5);
-		passwordField = new JPasswordField(UserSettings.get("httpPass", ""), 20);
-		streamPortField = new JTextField(UserSettings.get("streamPort", ""), 5);
-		connectButton = new JButton("Connect");
-
-		textFields = Arrays.asList(hostField, webPortField, passwordField, streamPortField);
-
-		titleLabel = new JLabel();
-		titleLabel.addComponentListener(new TitleResizeListener());
-		JLabel nowPlayingLabel = new JLabel("Now Playing");
-		nowPlayingLabel.setFont(
-				FONT.deriveFont(18f).deriveFont(UNDERLINE)
-		);
-
-		topPre1 = new JPanel(new FlowLayout(FlowLayout.CENTER, MAIN_PADDING, 0));
-		topPre1.add(new JLabel("Host:"));
-		topPre1.add(hostField);
-		topPre1.add(new JLabel("Password:"));
-		topPre1.add(passwordField);
-
-		topPre2 = new JPanel(new FlowLayout(FlowLayout.CENTER, MAIN_PADDING, 0));
-		topPre2.add(new JLabel("Web Port:"));
-		topPre2.add(webPortField);
-		topPre2.add(new JLabel("Stream Port:"));
-		topPre2.add(streamPortField);
-		topPre2.add(connectButton);
-
-		topPost1 = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-		topPost1.add(nowPlayingLabel);
-
-		topPost2 = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
-		topPost2.add(titleLabel);
-
-		topPanel = new JPanel(new BorderLayout(0, 10));
-		topPanel.setBorder(new EmptyBorder(MAIN_PADDING, 0, MAIN_PADDING, 0));
-		topPanel.setPreferredSize(new Dimension(MAIN_WIDTH -20, 75));
-
-		topPanel.add(topPre1, BorderLayout.NORTH);
-		topPanel.add(topPre2, BorderLayout.SOUTH);
+		loginPanel.loadSettings();
 	}
 
 	private void initMiddle() {
 		positionLabel = new JLabel("00:00:00");
 		progressBar = new JProgressBar(0, (int) Math.pow(10, 6));
 		lengthLabel = new JLabel("00:00:00");
-
-		progressBar.addMouseListener(new ProgressBarMouseListener());
 
 		Dimension d = new Dimension(66, 25);
 		positionLabel.setPreferredSize(d);
@@ -233,7 +184,6 @@ public class RemoteInterface extends JFrame {
 
 		nextButton = new JButton(SimpleIcon.NEXT.get());
 		nextButton.setActionCommand("NEXT");
-		nextButton.setToolTipText(Command.NEXT.getDescription());
 
 		prevButton = new JButton(SimpleIcon.PREV.get());
 		prevButton.setActionCommand("PREV");
@@ -284,8 +234,8 @@ public class RemoteInterface extends JFrame {
 
 	private void initActionListeners() {
 
-		textFields.forEach(i -> i.addActionListener(this::connectPressed));
-		connectButton.addActionListener(this::connectPressed);
+		progressBar.addMouseListener(new ProgressBarMouseListener());
+
 		playPauseButton.addActionListener(this::playPausePressed);
 		controlButtons.forEach(b -> b.addActionListener(this::controlButtonPressed));
 		controls.forEach(c -> c.addKeyListener(new ControlsKeyListener()));
@@ -317,18 +267,15 @@ public class RemoteInterface extends JFrame {
 		g.registerHotkey(VK_DIVIDE, 	NONE, prevButton::doClick);
 	}
 
-	private void connectPressed(AWTEvent e) {
+	public void connect() {
 
-		saveConnectionInfo();
 		initRemote();
 		connected = remote.testConnection();
 
 		if (connected) {
-			topPanel.remove(topPre1);
-			topPanel.remove(topPre2);
+			mainPanel.remove(loginPanel);
 
-			topPanel.add(topPost1, BorderLayout.NORTH);
-			topPanel.add(topPost2, BorderLayout.SOUTH);
+			mainPanel.add(statusPanel, BorderLayout.NORTH);
 
 			controls.forEach(b -> b.setEnabled(true));
 
@@ -343,48 +290,14 @@ public class RemoteInterface extends JFrame {
 		}
 	}
 
-	private void saveConnectionInfo() {
-		UserSettings.put("httpHost", hostField.getText());
-		UserSettings.put("httpPort", webPortField.getText());
-		UserSettings.put("streamPort", streamPortField.getText());
-
-		if (!UserSettings.keyExists("httpPass") && UserSettings.getBoolean("saveHttpPass", true)) {
-
-			boolean savePass = JOptionPane.showConfirmDialog(this,
-					GuiUtils.restrictDialogWidth("Save password in preferences?<br>WARNING: This saves in plain text."),
-					"Save Password",
-					YES_NO_OPTION,
-					QUESTION_MESSAGE
-			) == 0;
-
-			UserSettings.putBoolean("saveHttpPass", savePass);
-
-			if (savePass)
-				UserSettings.put("httpPass", String.valueOf(passwordField.getPassword()));
-		}
-
-		if (UserSettings.keyExists("httpPass") && !UserSettings.keyExists("autoconnect")) {
-			boolean autoconnect = JOptionPane.showConfirmDialog(this,
-					"Auto connect from startup next time?",
-					"Auto Connect",
-					YES_NO_OPTION,
-					QUESTION_MESSAGE
-			) == 0;
-
-			UserSettings.putBoolean("autoconnect", autoconnect);
-		}
-	}
-
 	private void initRemote() {
-		char[] password = passwordField.getPassword();
 		remote = new MyVLCRemote(
-				hostField.getText(),
-				Integer.parseInt(webPortField.getText()),
-				String.valueOf(password),
-				Integer.parseInt(streamPortField.getText()),
+				loginPanel.getHost(),
+				loginPanel.getHttpPort(),
+				loginPanel.getPassword(),
+				loginPanel.getStreamPort(),
 				this::handleException
 		);
-		Arrays.fill(password, '0');
 	}
 
 	public void updateInterface() {
@@ -436,9 +349,8 @@ public class RemoteInterface extends JFrame {
 				artist == null ? title :
 				artist + " - " + title;
 
-		if (!titleLabel.getText().equals(text)) { // if we're on a new song than before
-			titleLabel.setText(text);
-			titleLabel.setFont(FONT.deriveFont(MAX_TITLE_FONT_SIZE));
+		if (!statusPanel.getTitle().equals(text)) { // if we're on a new song than before
+			statusPanel.setTitle(text);
 
 			int length = Integer.parseInt(status.get("length"));
 			lengthLabel.setText(GuiUtils.formatTime(length));
@@ -567,16 +479,6 @@ public class RemoteInterface extends JFrame {
 
 	private void alert(String title, String text, @MagicConstant(intValues={INFORMATION_MESSAGE,WARNING_MESSAGE, ERROR_MESSAGE,QUESTION_MESSAGE,PLAIN_MESSAGE}) int messageType) {
 		JOptionPane.showMessageDialog(this, GuiUtils.restrictDialogWidth(text), title, messageType);
-	}
-
-	private class TitleResizeListener extends ComponentAdapter {
-		@Override
-		public void componentResized(ComponentEvent e) {
-			float curSize = titleLabel.getFont().getSize();
-
-			if (titleLabel.getSize().getWidth() >  MAX_TITLE_WIDTH && curSize >= MIN_TITLE_FONT_SIZE)
-				titleLabel.setFont(FONT.deriveFont(curSize - 2));
-		}
 	}
 
 	private class VolumeSliderMouseListener extends MouseAdapter {
