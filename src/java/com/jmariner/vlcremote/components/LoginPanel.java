@@ -80,7 +80,6 @@ public class LoginPanel extends JPanel {
 	}
 
 	public void connectPressed(AWTEvent e) {
-		saveConnectionInfo();
 		gui.connect();
 	}
 
@@ -100,7 +99,7 @@ public class LoginPanel extends JPanel {
 		return Integer.parseInt(streamPortField.getText());
 	}
 
-	private void saveConnectionInfo() {
+	public void saveConnectionInfo() {
 		UserSettings.put("httpHost", hostField.getText());
 		UserSettings.put("httpPort", webPortField.getText());
 		UserSettings.put("streamPort", streamPortField.getText());

@@ -10,6 +10,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.intellij.lang.annotations.MagicConstant;
 
 import javax.swing.*;
@@ -25,7 +26,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.jmariner.vlcremote.util.Constants.*;
@@ -246,6 +246,8 @@ public class RemoteInterface extends JFrame {
 		connected = remote.testConnection();
 
 		if (connected) {
+			loginPanel.saveConnectionInfo();
+
 			mainPanel.remove(loginPanel);
 
 			mainPanel.add(statusPanel, BorderLayout.NORTH);
@@ -431,10 +433,8 @@ public class RemoteInterface extends JFrame {
 		String text = "An error has occurred.<br><br>" + StringEscapeUtils.escapeHtml4(e.getMessage()) + "<br><br>Show the error?";
 		int showErrorInt = JOptionPane.showConfirmDialog(this, GuiUtils.restrictDialogWidth(text, false), "Error", YES_NO_OPTION, ERROR_MESSAGE);
 		if (showErrorInt == 0) {
-			String stackTrace = String.join("\n",
-					Stream.of(e.getStackTrace())
-							.map(StackTraceElement::toString)
-							.collect(Collectors.toList()));
+
+			String stackTrace = ExceptionUtils.getStackTrace(e);
 
 			JScrollPane pane = new JScrollPane(new JTextArea(stackTrace));
 			pane.setPreferredSize(new Dimension(MAIN_WIDTH-100, MAX_HEIGHT-100));
