@@ -1,4 +1,4 @@
-package com.jmariner.vlcremote.components;
+package com.jmariner.vlcremote.gui;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -25,7 +25,6 @@ import javax.swing.event.ChangeEvent;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.jmariner.vlcremote.RemoteInterface;
 import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
 import com.jmariner.vlcremote.util.GuiUtils;
@@ -50,7 +49,7 @@ public class ControlsPanel extends JPanel {
 	
 	private List<AbstractButton> vlcControlButtons = new ArrayList<>();
 	
-	public ControlsPanel(RemoteInterface gui) {
+	protected ControlsPanel(RemoteInterface gui) {
 		super(new BorderLayout(0, 0));
 		
 		this.gui = gui;
@@ -134,24 +133,24 @@ public class ControlsPanel extends JPanel {
 		togglePlaylistButton.addActionListener(gui::togglePlaylistArea);
 	}
 	
-	public void togglePlaying() {
+	protected void togglePlaying() {
 		playPauseButton.doClick();
 	}
 	
-	public void next() {
+	protected void next() {
 		nextButton.doClick();
 	}
 	
-	public void previous() {
+	protected void previous() {
 		prevButton.doClick();
 	}
 	
-	public void updatePlaylistButton() {
+	protected void updatePlaylistButton() {
 		togglePlaylistButton.setSelected(gui.isPlaylistAreaShowing());
 		togglePlaylistButton.setToolTipText(gui.isPlaylistAreaShowing() ? "Hide playlist" : "Show playlist");
 	}
 	
-	public void updateVolume() {
+	protected void updateVolume() {
 		int volume = volumeSlider.getValue();
 		if (!volumeTextField.hasFocus())
 			volumeTextField.setText(volume + "%");
@@ -165,7 +164,7 @@ public class ControlsPanel extends JPanel {
 		volumeButton.setToolTipText("Click to " + (gui.isMuted() ? "unmute" : "mute"));
 	}
 	
-	public void update(VLCStatus status) {
+	protected void update(VLCStatus status) {
 		
 		// state will be either playing or paused at this point
 		String newState = status.getState() == State.PAUSED ? "PLAY" : "PAUSE";

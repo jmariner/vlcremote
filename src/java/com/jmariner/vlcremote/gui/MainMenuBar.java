@@ -1,6 +1,5 @@
-package com.jmariner.vlcremote.components;
+package com.jmariner.vlcremote.gui;
 
-import com.jmariner.vlcremote.RemoteInterface;
 import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.UserSettings;
 import org.apache.commons.lang3.StringUtils;
@@ -26,7 +25,7 @@ public class MainMenuBar extends JMenuBar {
 	private JMenuItem gotoPreferences;
 	private JMenuItem updateDelayInput;
 
-	public MainMenuBar(RemoteInterface gui) {
+	protected MainMenuBar(RemoteInterface gui) {
 		super();
 
 		this.gui = gui;
@@ -86,7 +85,7 @@ public class MainMenuBar extends JMenuBar {
 			gui.handleException(new IllegalArgumentException("Input must be a number"));
 	}
 
-	public void loadSettings() {
+	protected void loadSettings() {
 		instantPauseEnabled = UserSettings.getBoolean("instantPause", false);
 		instantPause.setSelected(instantPauseEnabled);
 	}

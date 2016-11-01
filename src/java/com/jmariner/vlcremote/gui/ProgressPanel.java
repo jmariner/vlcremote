@@ -1,7 +1,6 @@
-package com.jmariner.vlcremote.components;
+package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.MyVLCRemote;
-import com.jmariner.vlcremote.RemoteInterface;
 import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.VLCStatus;
 
@@ -22,7 +21,7 @@ public class ProgressPanel extends JPanel {
 	private static final String ZERO_TIME = "00:00:00";
 	private static final Dimension TIME_LABEL_SIZE = new Dimension(66, 25);
 
-	public ProgressPanel(RemoteInterface gui) {
+	protected ProgressPanel(RemoteInterface gui) {
 		super(new BorderLayout(MAIN_PADDING, 0), true);
 
 		this.gui = gui;
@@ -47,7 +46,7 @@ public class ProgressPanel extends JPanel {
 		this.add(lengthLabel, BorderLayout.EAST);
 	}
 
-	public void update(VLCStatus status) {
+	protected void update(VLCStatus status) {
 		int currentTime = status.getTime();
 		double positionPercent = status.getPosition();
 
@@ -55,7 +54,7 @@ public class ProgressPanel extends JPanel {
 		progressBar.setValue((int) (positionPercent * progressBar.getMaximum()));
 	}
 
-	public void updateLength(VLCStatus status) {
+	protected void updateLength(VLCStatus status) {
 		int length = status.getLength();
 		lengthLabel.setText(GuiUtils.formatTime(length));
 	}

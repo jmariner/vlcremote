@@ -1,6 +1,8 @@
 package com.jmariner.vlcremote.util;
 
-import com.jmariner.vlcremote.RemoteInterface;
+import com.jmariner.vlcremote.Main;
+import com.jmariner.vlcremote.gui.RemoteInterface;
+
 import lombok.extern.slf4j.Slf4j;
 import net.infotrek.util.prefs.FilePreferencesFactory;
 
@@ -26,11 +28,11 @@ public class UserSettings {
 	    try {
 
 			String prefsFileLocation = (new File(
-					RemoteInterface.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()
+					Main.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()
 			)).getParentFile().getPath() + File.separator + fileName;
 
 			if (!(new File(prefsFileLocation)).exists()) {
-				InputStream in = RemoteInterface.class.getResourceAsStream("defaults.prefs");
+				InputStream in = Main.class.getResourceAsStream("defaults.prefs");
 				if (in != null)
 					Files.copy(in, Paths.get(prefsFileLocation));
 			}
@@ -42,7 +44,7 @@ public class UserSettings {
 			e.printStackTrace();
 		}
 
-		return Preferences.userNodeForPackage(RemoteInterface.class);
+		return Preferences.userNodeForPackage(Main.class);
 	}
 
 	public static File getPrefsFile() {

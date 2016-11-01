@@ -1,6 +1,7 @@
 package com.jmariner.vlcremote.util;
 
-import com.jmariner.vlcremote.RemoteInterface;
+import com.jmariner.vlcremote.Main;
+import com.jmariner.vlcremote.gui.RemoteInterface;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,7 +28,7 @@ public enum SimpleIcon {
 
 	SimpleIcon() {
 		String file = String.format("icons/%s.png", name().toLowerCase());
-		imageIcon = new ImageIcon(RemoteInterface.class.getResource(file));
+		imageIcon = new ImageIcon(Main.class.getResource(file));
 		imageIcon.setImage(imageIcon.getImage().getScaledInstance(ICON_SIZE, ICON_SIZE, Image.SCALE_SMOOTH));
 	}
 

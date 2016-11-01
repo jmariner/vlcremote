@@ -1,4 +1,4 @@
-package com.jmariner.vlcremote.components;
+package com.jmariner.vlcremote.gui;
 
 import javax.swing.*;
 import java.awt.*;
@@ -11,7 +11,7 @@ public class StatusPanel extends JPanel {
 
 	private JLabel titleLabel;
 
-	public StatusPanel() {
+	protected StatusPanel() {
 		super(new BorderLayout(0, MAIN_PADDING));
 
 		init();
@@ -39,12 +39,12 @@ public class StatusPanel extends JPanel {
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, TOP_HEIGHT));
 	}
 
-	public void setTitle(String title) {
+	protected void setTitle(String title) {
 		titleLabel.setText(title);
 		titleLabel.setFont(FONT.deriveFont(MAX_TITLE_FONT_SIZE));
 	}
 
-	public String getTitle() {
+	protected String getTitle() {
 		return titleLabel.getText();
 	}
 

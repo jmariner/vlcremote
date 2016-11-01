@@ -1,6 +1,5 @@
-package com.jmariner.vlcremote.components;
+package com.jmariner.vlcremote.gui;
 
-import com.jmariner.vlcremote.RemoteInterface;
 import com.jmariner.vlcremote.SongItem;
 import com.jmariner.vlcremote.util.VLCStatus;
 import org.jdesktop.swingx.JXList;
@@ -27,7 +26,7 @@ public class PlaylistPanel extends JPanel {
 
 	private ListSortController<ListModel<SongItem>> sorter;
 
-	public PlaylistPanel(RemoteInterface gui) {
+	protected PlaylistPanel(RemoteInterface gui) {
 		super(new BorderLayout(0, 10));
 		this.gui = gui;
 		init();
@@ -98,7 +97,7 @@ public class PlaylistPanel extends JPanel {
 		gui.updateInterface(gui.getRemote().getStatus());
 	}
 
-	public void update(VLCStatus status) {
+	protected void update(VLCStatus status) {
 		list.setSelectedIndex( // TODO setSelectedValue doesn't work here for some reason
 				gui.getRemote().transformPlaylistID(status.getCurrentID())
 		);

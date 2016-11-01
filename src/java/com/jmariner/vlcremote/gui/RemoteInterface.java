@@ -1,7 +1,8 @@
-package com.jmariner.vlcremote;
+package com.jmariner.vlcremote.gui;
 
+import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
-import com.jmariner.vlcremote.components.*;
+import com.jmariner.vlcremote.gui.*;
 import com.jmariner.vlcremote.util.*;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.AccessLevel;
@@ -34,7 +35,7 @@ import static javax.swing.JOptionPane.*;
 @SuppressWarnings("FieldCanBeLocal")
 public class RemoteInterface extends JFrame {
 
-	@Getter(AccessLevel.PUBLIC)
+	@Getter(AccessLevel.PROTECTED)
 	private MyVLCRemote remote;
 
 	private MainMenuBar menuBar;
@@ -57,7 +58,7 @@ public class RemoteInterface extends JFrame {
 
 	private ScheduledFuture<?> updateLoop;
 
-	@Getter(AccessLevel.PUBLIC) @Setter(AccessLevel.PUBLIC)
+	@Getter(AccessLevel.PROTECTED) @Setter(AccessLevel.PROTECTED)
 	private boolean connected, muted, playlistAreaShowing;
 
 	// this is to create a NullPointerException if i try using the superclass's HEIGHT value of 1
@@ -118,7 +119,7 @@ public class RemoteInterface extends JFrame {
 		}
 	}
 
-	public void togglePlaylistArea(AWTEvent e) {
+	protected void togglePlaylistArea(AWTEvent e) {
 		playlistAreaShowing = !playlistAreaShowing;
 
 		if (playlistAreaShowing) {
@@ -158,7 +159,7 @@ public class RemoteInterface extends JFrame {
 		g.registerHotkey(VK_DIVIDE, 	NONE, controlsPanel::previous);
 	}
 
-	public void connect() {
+	protected void connect() {
 
 		initRemote();
 		connected = remote.testConnection();
@@ -193,11 +194,11 @@ public class RemoteInterface extends JFrame {
 		);
 	}
 
-	public void updateInterface() {
+	protected void updateInterface() {
 		updateInterface(null);
 	}
 
-	public void updateInterface(VLCStatus status) {
+	protected void updateInterface(VLCStatus status) {
 
 		controlsPanel.updateVolume();
 
@@ -247,17 +248,17 @@ public class RemoteInterface extends JFrame {
 		);
 	}
 
-	public void restartUpdateLoop() {
+	protected void restartUpdateLoop() {
 		if (!updateLoop.isCancelled())
 			updateLoop.cancel(true);
 		startUpdateLoop();
 	}
 
-	public void clearFocus() {
+	protected void clearFocus() {
 		mainPanel.requestFocus();
 	}
 
-	public void handleException(Throwable e) {
+	protected void handleException(Throwable e) {
 		String text = "An error has occurred.<br><br>" + StringEscapeUtils.escapeHtml4(e.getMessage()) + "<br><br>Show the error?";
 		int showErrorInt = JOptionPane.showConfirmDialog(this, GuiUtils.restrictDialogWidth(text, false), "Error", YES_NO_OPTION, ERROR_MESSAGE);
 		if (showErrorInt == 0) {
@@ -308,13 +309,6 @@ public class RemoteInterface extends JFrame {
 				remote.sendCommand(Command.PAUSE);
 			}
 		}
-	}
-
-	public static void main(String[] args) {
-		SwingUtilities.invokeLater(() -> {
-			RemoteInterface r = new RemoteInterface();
-			r.setVisible(true);
-		});
 	}
 
 }

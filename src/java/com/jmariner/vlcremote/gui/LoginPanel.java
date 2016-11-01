@@ -1,6 +1,5 @@
-package com.jmariner.vlcremote.components;
+package com.jmariner.vlcremote.gui;
 
-import com.jmariner.vlcremote.RemoteInterface;
 import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.UserSettings;
 import lombok.AccessLevel;
@@ -24,12 +23,11 @@ public class LoginPanel extends JPanel {
 
 	private JTextField hostField, webPortField, streamPortField;
 	private JPasswordField passwordField;
-	@Getter(AccessLevel.PUBLIC)
 	private JButton connectButton;
 
 	private List<JTextField> textFields = new ArrayList<>();
 
-	public LoginPanel(RemoteInterface gui) {
+	protected LoginPanel(RemoteInterface gui) {
 		super(new BorderLayout(0, MAIN_PADDING));
 
 		this.gui = gui;
@@ -79,27 +77,27 @@ public class LoginPanel extends JPanel {
 		connectButton.addActionListener(this::connectPressed);
 	}
 
-	public void connectPressed(AWTEvent e) {
+	protected void connectPressed(AWTEvent e) {
 		gui.connect();
 	}
 
-	public String getPassword() {
+	protected String getPassword() {
 		return String.valueOf(passwordField.getPassword());
 	}
 
-	public String getHost() {
+	protected String getHost() {
 		return hostField.getText();
 	}
 
-	public int getHttpPort() {
+	protected int getHttpPort() {
 		return Integer.parseInt(webPortField.getText());
 	}
 
-	public int getStreamPort() {
+	protected int getStreamPort() {
 		return Integer.parseInt(streamPortField.getText());
 	}
 
-	public void saveConnectionInfo() {
+	protected void saveConnectionInfo() {
 		UserSettings.put("httpHost", hostField.getText());
 		UserSettings.put("httpPort", webPortField.getText());
 		UserSettings.put("streamPort", streamPortField.getText());
@@ -131,7 +129,7 @@ public class LoginPanel extends JPanel {
 		}
 	}
 
-	public void loadSettings() {
+	protected void loadSettings() {
 		hostField.setText(UserSettings.get("httpHost", ""));
 		webPortField.setText(UserSettings.get("httpPort", ""));
 		streamPortField.setText(UserSettings.get("streamPort", ""));
