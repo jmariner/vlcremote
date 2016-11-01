@@ -2,6 +2,7 @@ package com.jmariner.vlcremote.util;
 
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Arrays;
 import java.util.List;
@@ -19,6 +20,9 @@ public class VLCStatus {
 	private int time, volume, length, currentID;
 	private double position, rate;
 	private State state;
+	
+	@Getter @Setter
+	private List<String> eqPresets;
 
 	private String get(String key) {
 		return map.get(key);

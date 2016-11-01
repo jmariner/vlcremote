@@ -1,17 +1,24 @@
 package com.jmariner.vlcremote.gui;
 
+import com.jmariner.vlcremote.MyVLCRemote.Command;
 import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.UserSettings;
+import com.jmariner.vlcremote.util.VLCStatus;
+
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
-import java.awt.*;
 
 import static com.jmariner.vlcremote.util.Constants.MAIN_WIDTH;
 import static com.jmariner.vlcremote.util.Constants.MENUBAR_HEIGHT;
 import static java.awt.event.KeyEvent.VK_O;
 import static java.awt.event.KeyEvent.VK_T;
 import static javax.swing.JOptionPane.INFORMATION_MESSAGE;
+
+import java.awt.AWTEvent;
+import java.awt.Dimension;
+import java.util.List;
 
 public class MainMenuBar extends JMenuBar {
 
@@ -24,11 +31,16 @@ public class MainMenuBar extends JMenuBar {
 	private JMenuItem restartStream;
 	private JMenuItem gotoPreferences;
 	private JMenuItem updateDelayInput;
+	private JMenuItem setEqPreset;
+	
+	private List<String> eqPresets;
 
 	protected MainMenuBar(RemoteInterface gui) {
 		super();
 
 		this.gui = gui;
+		
+		this.eqPresets = null;
 
 		init();
 		initListeners();
@@ -41,6 +53,7 @@ public class MainMenuBar extends JMenuBar {
 		debugBorders = new JCheckBoxMenuItem("Show debug borders");
 		updateDelayInput = new JMenuItem("Set update delay");
 		instantPause = new JCheckBoxMenuItem("Enable instant pause");
+		setEqPreset = new JMenuItem("Equalizer...");
 
 		JMenu tools = new JMenu("Tools");
 		tools.setMnemonic(VK_T);
@@ -52,6 +65,9 @@ public class MainMenuBar extends JMenuBar {
 		options.add(updateDelayInput);
 		options.add(debugBorders);
 		options.add(instantPause);
+		options.add(setEqPreset);
+		
+		setEqPreset.setEnabled(false);
 
 		this.add(tools);
 		this.add(options);
@@ -68,8 +84,14 @@ public class MainMenuBar extends JMenuBar {
 		restartStream.addActionListener(e -> gui.getRemote().restartStream());
 		gotoPreferences.addActionListener(e -> UserSettings.viewPreferencesFile());
 		updateDelayInput.addActionListener(this::setUpdateDelay);
+		setEqPreset.addActionListener(this::setEqPreset);
 	}
-
+	
+	protected void update(VLCStatus status) {
+		eqPresets = status.getEqPresets();
+		setEqPreset.setEnabled(eqPresets.size() > 0);
+	}
+	
 	private void setUpdateDelay(AWTEvent e) {
 		String input =
 				JOptionPane.showInputDialog(this,
@@ -83,6 +105,20 @@ public class MainMenuBar extends JMenuBar {
 		}
 		else
 			gui.handleException(new IllegalArgumentException("Input must be a number"));
+	}
+	
+	private void setEqPreset(AWTEvent e) {
+		if (eqPresets != null) {
+			String input = (String) JOptionPane.showInputDialog(gui, 
+					"Select a preset", "Equalizer Preset",
+					JOptionPane.QUESTION_MESSAGE, null,
+					eqPresets.toArray(new String[eqPresets.size()]),
+					eqPresets.get(0)
+			);
+			int presetId = eqPresets.indexOf(input);
+			gui.getRemote().sendCommand(Command.SET_EQ_ENABLED, "1");
+			gui.getRemote().sendCommand(Command.SET_EQ_PRESET, ""+presetId);
+		}
 	}
 
 	protected void loadSettings() {

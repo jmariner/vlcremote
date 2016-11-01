@@ -54,7 +54,7 @@ public class MyVLCRemote {
 
 	@Getter
 	private Map<Integer, SongItem> songMap;
-
+	
 	public MyVLCRemote(String host, int webPort, String password, int streamPort, Consumer<Throwable> handler) {
 		baseURL = String.format("http://%s:%s/", host, webPort);
 		streamURL = String.format("http://%s:%s/", host, streamPort);
@@ -66,7 +66,7 @@ public class MyVLCRemote {
 		loadSongList();
 
 		status = new VLCStatus();
-
+		
 	}
 
 	public MyVLCRemote(String host, int webPort, String password, int streamPort) {
@@ -155,7 +155,7 @@ public class MyVLCRemote {
 			// Open the line through which we'll play the streaming audio.
 			playbackLine = (SourceDataLine) AudioSystem.getLine(info);
 			playbackLine.open(format);
-
+			
 			FloatControl gainControl = (FloatControl) playbackLine.getControl(FloatControl.Type.MASTER_GAIN);
 
 			// Allocate a buffer for reading from the input stream and writing
@@ -276,7 +276,9 @@ public class MyVLCRemote {
 	}
 
 	public VLCStatus getStatus() {
-		status.update(parseStatusJson(connect("requests/status.json")));
+		String json = connect("requests/status.json");
+		status.update(parseStatusJson(json));
+		status.setEqPresets(parseStatusForEqualizerOptions(json));
 		return status;
 	}
 
@@ -328,7 +330,7 @@ public class MyVLCRemote {
 		if (el.isJsonObject()) {
 			JsonObject j = el.getAsJsonObject();
 			Stream.of(
-			"time", "volume", "length", "random", "rate", "state", "loop", "version", "position", "repeat", "currentplid"
+					"time", "volume", "length", "random", "rate", "state", "loop", "version", "position", "repeat", "currentplid"
 			).forEach(s -> {
 				String key = s.equals("currentplid") ? "currentID" : s;
 				String val = j.get(s) == null ? "" : j.get(s).getAsString();
@@ -351,6 +353,28 @@ public class MyVLCRemote {
 			);
 		}
 		return out;
+	}
+	
+	private List<String> parseStatusForEqualizerOptions(String json) {
+		
+		List<String> out = new ArrayList<>();
+		
+		JsonElement el = new JsonParser().parse(json);
+		
+		if (el.isJsonObject()) {
+			JsonElement eq = el.getAsJsonObject().get("equalizer");
+			assert eq.isJsonObject();
+			
+			JsonElement presetsEl = eq.getAsJsonObject().get("presets");
+			assert presetsEl.isJsonObject();
+			
+			JsonObject presets = presetsEl.getAsJsonObject();
+			for (int i=0, l=presets.size(); i<l; i++) {
+				out.add(presets.get(String.format("preset id=\"%d\"", i)).getAsString());
+			}
+		}
+		return out;
+		
 	}
 
 	private List<Map<String, String>> parsePlaylistJson(String json) {
@@ -408,6 +432,8 @@ public class MyVLCRemote {
 		TOGGLE_REPEAT	("pl_repeat", 	"Repeat: Toggle single-song repeated playback"),
 		SET_VOLUME		("volume", 	"Set Volume: Set or change (with +<int>, -<int>, or <int>%) the volume level", "val"),
 		SET_RATE		("rate", 	"Set Rate: Set the playback rate. Default is 1", "val"),
+		SET_EQ_ENABLED	("enableeq",	"Turn on or off the equalizer. 0=off, 1=on", "val"),
+		SET_EQ_PRESET	("setpreset",	"Set the equalizer preset by ID", "val"),
 		SEEK_TO			("seek", 	"Seek To: Seek to a point in playback. Supported: +<val>, -<val>, <val> where <val> is seconds or #h#m#s", "val"),
 		PLAY_ITEM		("pl_play",	"Play Item: Play a playlist item by it's ID", "id");
 

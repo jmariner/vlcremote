@@ -238,6 +238,8 @@ public class RemoteInterface extends JFrame {
 		}
 
 		progressPanel.update(status);
+		
+		menuBar.update(status);
 
 	}
 
