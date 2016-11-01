@@ -2,9 +2,6 @@ package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.UserSettings;
-import lombok.AccessLevel;
-import lombok.Getter;
-
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;

@@ -33,8 +33,6 @@ import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
 import com.jmariner.vlcremote.util.VLCStatus.State;
 
-import lombok.Getter;
-
 public class ControlsPanel extends JPanel {
 	
 	private RemoteInterface gui;
