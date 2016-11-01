@@ -146,9 +146,9 @@ public class ControlsPanel extends JPanel {
 		prevButton.doClick();
 	}
 	
-	public void updatePlaylistButton(boolean playlistShowing) {
-		togglePlaylistButton.setSelected(playlistShowing);
-		togglePlaylistButton.setToolTipText(playlistShowing ? "Hide playlist" : "Show playlist");
+	public void updatePlaylistButton() {
+		togglePlaylistButton.setSelected(gui.isPlaylistAreaShowing());
+		togglePlaylistButton.setToolTipText(gui.isPlaylistAreaShowing() ? "Hide playlist" : "Show playlist");
 	}
 	
 	public void updateVolume() {

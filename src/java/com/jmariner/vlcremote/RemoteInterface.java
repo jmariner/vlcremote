@@ -9,13 +9,11 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringEscapeUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.intellij.lang.annotations.MagicConstant;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.ChangeEvent;
 import javax.swing.plaf.FontUIResource;
 import java.awt.*;
 import java.awt.event.*;
@@ -24,9 +22,6 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.jmariner.vlcremote.util.Constants.*;
@@ -45,26 +40,18 @@ public class RemoteInterface extends JFrame {
 	private MainMenuBar menuBar;
 
 	private JPanel mainPanel;
-//	private JPanel bottomPanel;
+	
 	private LoginPanel loginPanel;
 	private StatusPanel statusPanel;
+	
 	private ProgressPanel progressPanel;
+	
+	private ControlsPanel controlsPanel;
 	
 	private JSeparator mainSeparator;
 	
-	private ControlsPanel controlsPanel;
-
 	private PlaylistPanel playlistPanel;
-/*
-	private JButton nextButton, playPauseButton, prevButton;
-	private JToggleButton repeatToggleButton, loopToggleButton, shuffleToggleButton;
-	private JToggleButton togglePlaylistButton;
-
-	private JButton volumeButton;
-	private JSlider volumeSlider;
-	private JTextField volumeTextField;
-
-	private List<AbstractButton> vlcControlButtons = new ArrayList<>();//*/
+	
 	@Getter
 	private List<JComponent> controlComponents = new ArrayList<>();
 
@@ -145,71 +132,13 @@ public class RemoteInterface extends JFrame {
 			this.remove(playlistPanel);
 		}
 
-		controlsPanel.updatePlaylistButton(playlistAreaShowing);
+		controlsPanel.updatePlaylistButton();
 	}
 
 	private void loadSettings() {
 		menuBar.loadSettings();
 		loginPanel.loadSettings();
 	}
-/*
-	private void initBottom() {
-
-		Dimension buttonSize = GuiUtils.squareDim((int) (SimpleIcon.ICON_SIZE * 1.25));
-
-		playPauseButton = new JButton(SimpleIcon.PLAY.get());
-		playPauseButton.setActionCommand("PLAY");
-
-		nextButton = new JButton(SimpleIcon.NEXT.get());
-		nextButton.setActionCommand("NEXT");
-
-		prevButton = new JButton(SimpleIcon.PREV.get());
-		prevButton.setActionCommand("PREV");
-
-		repeatToggleButton = new JToggleButton(SimpleIcon.REPEAT.get());
-		repeatToggleButton.setActionCommand("TOGGLE_REPEAT");
-
-		loopToggleButton = new JToggleButton(SimpleIcon.LOOP.get());
-		loopToggleButton.setActionCommand("TOGGLE_LOOP");
-
-		shuffleToggleButton = new JToggleButton(SimpleIcon.SHUFFLE.get());
-		shuffleToggleButton.setActionCommand("TOGGLE_RANDOM");
-
-		vlcControlButtons = Arrays.asList(prevButton, playPauseButton, nextButton,
-				repeatToggleButton, loopToggleButton, shuffleToggleButton);
-
-		togglePlaylistButton = new JToggleButton(SimpleIcon.PLAYLIST.get());
-		togglePlaylistButton.setToolTipText("Show playlist");
-		togglePlaylistButton.setPreferredSize(buttonSize);
-
-		JPanel bottomLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-		vlcControlButtons.stream().forEachOrdered(b -> {
-			b.setPreferredSize(buttonSize);
-			b.setToolTipText(Command.valueOf(b.getActionCommand()).getDescription());
-			bottomLeft.add(b);
-		});
-		bottomLeft.add(togglePlaylistButton);
-
-		volumeButton = new JButton(SimpleIcon.VOLUME_HIGH.get());
-		volumeButton.setPreferredSize(buttonSize);
-		volumeSlider = new JSlider(0, 200, 100);
-		volumeSlider.setToolTipText("Click or drag to set volume; double click to reset");
-		volumeTextField = new JTextField("100%", 5);
-		volumeTextField.setToolTipText("Enter volume from 0 to 200 percent");
-
-		controlComponents.add(togglePlaylistButton);
-		controlComponents.addAll(vlcControlButtons);
-		controlComponents.addAll(Arrays.asList(volumeButton, volumeSlider, volumeTextField));
-
-		JPanel bottomRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-		bottomRight.add(volumeButton);
-		bottomRight.add(volumeSlider);
-		bottomRight.add(volumeTextField);
-
-		bottomPanel = new JPanel(new BorderLayout(0, 0));
-		bottomPanel.add(bottomLeft, BorderLayout.WEST);
-		bottomPanel.add(bottomRight, BorderLayout.EAST);
-	}//*/
 
 	/* 	TODO create a menu to edit hotkeys. ask user to input a hotkey and use KeyStroke.getKeyStroke(SomeEvent e)
 		to get it. ignore control/alt/shift/meta keys as normal keys, only allow their use as mask keys
