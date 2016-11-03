@@ -41,7 +41,7 @@ public class ControlsPanel extends JPanel {
 	private JToggleButton repeatToggleButton, loopToggleButton, shuffleToggleButton;
 	private JToggleButton togglePlaylistButton;
 
-	private JButton volumeButton;
+	private JButton toggleMuteButton;
 	private JSlider volumeSlider;
 	private JTextField volumeTextField;
 	
@@ -55,11 +55,24 @@ public class ControlsPanel extends JPanel {
 		init();
 		
 		gui.getControlComponents().addAll(
-				Arrays.asList(togglePlaylistButton, volumeButton, volumeSlider, volumeTextField)
+				Arrays.asList(togglePlaylistButton, toggleMuteButton, volumeSlider, volumeTextField)
 		);
 		gui.getControlComponents().addAll(vlcControlButtons);
 		
 		initListeners();
+		
+		Arrays.asList(ControlsPanel.class.getDeclaredFields()).forEach(f -> {
+			try {
+				if (f.getType() == JButton.class || f.getType() == JToggleButton.class) {
+				//	f.setAccessible(true);
+					AbstractButton b = (AbstractButton) f.get(this);
+					gui.getButtons().put(f.getName().replace("Button", ""), b);
+				}
+			}
+			catch (ReflectiveOperationException e) {
+				e.printStackTrace();
+			}
+		});
 	}
 	
 	private void init() {
@@ -99,8 +112,8 @@ public class ControlsPanel extends JPanel {
 		});
 		leftHalf.add(togglePlaylistButton);
 		
-		volumeButton = new JButton(SimpleIcon.VOLUME_HIGH.get());
-		volumeButton.setPreferredSize(buttonSize);
+		toggleMuteButton = new JButton(SimpleIcon.VOLUME_HIGH.get());
+		toggleMuteButton.setPreferredSize(buttonSize);
 		
 		volumeSlider = new JSlider(0, 200, 100);
 		volumeSlider.setToolTipText("Click or drag to set volume; double click to reset");
@@ -109,7 +122,7 @@ public class ControlsPanel extends JPanel {
 		volumeTextField.setToolTipText("Enter volume from 0 to 200 percent");
 		
 		JPanel rightHalf = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-		Stream.of(volumeButton, volumeSlider, volumeTextField).forEachOrdered(rightHalf::add);
+		Stream.of(toggleMuteButton, volumeSlider, volumeTextField).forEachOrdered(rightHalf::add);
 		
 		this.add(leftHalf, BorderLayout.WEST);
 		this.add(rightHalf, BorderLayout.EAST);
@@ -125,7 +138,7 @@ public class ControlsPanel extends JPanel {
 		volumeSlider.addMouseWheelListener(listener);
 		volumeSlider.addChangeListener(this::volumeChanged);
 		
-		volumeButton.addActionListener(this::toggleMute);
+		toggleMuteButton.addActionListener(this::toggleMute);
 		volumeTextField.addActionListener(this::volumeInputted);
 		
 		togglePlaylistButton.addActionListener(gui::togglePlaylistArea);
@@ -143,11 +156,6 @@ public class ControlsPanel extends JPanel {
 		prevButton.doClick();
 	}
 	
-	protected void updatePlaylistButton() {
-		togglePlaylistButton.setSelected(gui.isPlaylistAreaShowing());
-		togglePlaylistButton.setToolTipText(gui.isPlaylistAreaShowing() ? "Hide playlist" : "Show playlist");
-	}
-	
 	protected void updateVolume() {
 		int volume = volumeSlider.getValue();
 		if (!volumeTextField.hasFocus())
@@ -158,11 +166,16 @@ public class ControlsPanel extends JPanel {
 				volume < 100 ? SimpleIcon.VOLUME_LOW :
 				SimpleIcon.VOLUME_HIGH;
 
-		volumeButton.setIcon(volumeIcon.get());
-		volumeButton.setToolTipText("Click to " + (gui.isMuted() ? "unmute" : "mute"));
+		toggleMuteButton.setIcon(volumeIcon.get());
+		toggleMuteButton.setToolTipText("Click to " + (gui.isMuted() ? "unmute" : "mute"));
 	}
 	
 	protected void update(VLCStatus status) {
+		
+		togglePlaylistButton.setSelected(gui.isPlaylistAreaShowing());
+		togglePlaylistButton.setToolTipText(gui.isPlaylistAreaShowing() ? "Hide playlist" : "Show playlist");
+		
+		if (status == null) return;
 		
 		// state will be either playing or paused at this point
 		String newState = status.getState() == State.PAUSED ? "PLAY" : "PAUSE";

@@ -55,7 +55,10 @@ public class UserSettings {
 		if (prefs == null) prefs = initPreferences();
 		return prefs;
 	}
-
+	
+	/**
+	 * @see Preferences#node(String)
+	 */
 	public static Preferences getChild(String node) {
 		return getRoot().node(node);
 	}

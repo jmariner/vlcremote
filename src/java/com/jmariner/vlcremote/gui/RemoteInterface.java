@@ -2,7 +2,6 @@ package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
-import com.jmariner.vlcremote.gui.*;
 import com.jmariner.vlcremote.util.*;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.AccessLevel;
@@ -55,6 +54,9 @@ public class RemoteInterface extends JFrame {
 	
 	@Getter
 	private List<JComponent> controlComponents = new ArrayList<>();
+	
+	@Getter
+	private Map<String, AbstractButton> buttons;
 
 	private ScheduledFuture<?> updateLoop;
 
@@ -79,6 +81,8 @@ public class RemoteInterface extends JFrame {
 		} catch (UnsupportedLookAndFeelException e) {
 			e.printStackTrace();
 		}
+		
+		buttons = new HashMap<>();
 
 		menuBar = new MainMenuBar(this);
 		loginPanel = new LoginPanel(this);
@@ -133,7 +137,7 @@ public class RemoteInterface extends JFrame {
 			this.remove(playlistPanel);
 		}
 
-		controlsPanel.updatePlaylistButton();
+		controlsPanel.update((VLCStatus)null);
 	}
 
 	private void loadSettings() {
@@ -150,13 +154,18 @@ public class RemoteInterface extends JFrame {
 	private void initHotkeys() {
 		GlobalHotkeyListener g = new GlobalHotkeyListener();
 		
-		g.registerHotkey(MEDIA_PLAY_PAUSE, controlsPanel::togglePlaying);
-		g.registerHotkey(MEDIA_NEXT_TRACK, controlsPanel::next);
-		g.registerHotkey(MEDIA_PREV_TRACK, controlsPanel::previous);
+		g.registerHotkey(MEDIA_PLAY_PAUSE, getButton("playPause")::doClick);
+		g.registerHotkey(MEDIA_NEXT_TRACK, getButton("next")::doClick);
+		g.registerHotkey(MEDIA_PREV_TRACK, getButton("prev")::doClick);
 
-		g.registerHotkey(VK_ADD,		NONE, controlsPanel::togglePlaying);
-		g.registerHotkey(VK_MULTIPLY, 	NONE, controlsPanel::next);
-		g.registerHotkey(VK_DIVIDE, 	NONE, controlsPanel::previous);
+		g.registerHotkey(VK_ADD,		NONE, getButton("playPause")::doClick);
+		g.registerHotkey(VK_MULTIPLY, 	NONE, getButton("next")::doClick);
+		g.registerHotkey(VK_DIVIDE, 	NONE, getButton("prev")::doClick);
+	}
+	
+	protected AbstractButton getButton(String name) {
+		AbstractButton b = buttons.get(name);
+		return b == null ? new JButton() : b;
 	}
 
 	protected void connect() {
