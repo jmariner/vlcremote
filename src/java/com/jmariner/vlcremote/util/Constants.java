@@ -22,6 +22,8 @@ public class Constants {
 	public static final int TOP_HEIGHT = 75;
 
 	public static final int MAX_HEIGHT = MAIN_HEIGHT + PLAYLIST_HEIGHT + MENUBAR_HEIGHT;
+	
+	public static final FlowLayout FLOW_CENTER = new FlowLayout(FlowLayout.CENTER, 0, 0);
 
 	public static final HashMap<AttributedCharacterIterator.Attribute, Object> UNDERLINE = new HashMap<>();
 

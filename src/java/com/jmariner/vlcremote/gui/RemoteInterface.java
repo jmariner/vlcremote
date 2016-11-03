@@ -52,11 +52,13 @@ public class RemoteInterface extends JFrame {
 	
 	private PlaylistPanel playlistPanel;
 	
+	private KeybindEditor keybindEditor;
+	
 	@Getter
 	private List<JComponent> controlComponents = new ArrayList<>();
 	
 	@Getter
-	private Map<String, AbstractButton> buttons;
+	private Map<String, Runnable> actions;
 
 	private ScheduledFuture<?> updateLoop;
 
@@ -82,13 +84,14 @@ public class RemoteInterface extends JFrame {
 			e.printStackTrace();
 		}
 		
-		buttons = new HashMap<>();
+		actions = new HashMap<>();
 
 		menuBar = new MainMenuBar(this);
 		loginPanel = new LoginPanel(this);
 		statusPanel = new StatusPanel();
 		progressPanel = new ProgressPanel(this);
 		controlsPanel = new ControlsPanel(this);
+		keybindEditor = new KeybindEditor(this);
 
 		controlComponents.forEach(c -> {
 			c.addKeyListener(new ControlsKeyListener());
@@ -123,23 +126,6 @@ public class RemoteInterface extends JFrame {
 		}
 	}
 
-	protected void togglePlaylistArea(AWTEvent e) {
-		playlistAreaShowing = !playlistAreaShowing;
-
-		if (playlistAreaShowing) {
-			this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT + PLAYLIST_HEIGHT);
-			this.add(mainSeparator, BorderLayout.CENTER);
-			this.add(playlistPanel, BorderLayout.SOUTH);
-		}
-		else {
-			this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
-			this.remove(mainSeparator);
-			this.remove(playlistPanel);
-		}
-
-		controlsPanel.update((VLCStatus)null);
-	}
-
 	private void loadSettings() {
 		menuBar.loadSettings();
 		loginPanel.loadSettings();
@@ -163,9 +149,9 @@ public class RemoteInterface extends JFrame {
 		g.registerHotkey(VK_DIVIDE, 	NONE, getButton("prev")::doClick);
 	}
 	
-	protected AbstractButton getButton(String name) {
-		AbstractButton b = buttons.get(name);
-		return b == null ? new JButton() : b;
+	protected Runnable getAction(String name) {
+		Runnable r = actions.get(name);
+		return r == null ? () -> {} : r;
 	}
 
 	protected void connect() {
@@ -250,6 +236,27 @@ public class RemoteInterface extends JFrame {
 		
 		menuBar.update(status);
 
+	}
+	
+	protected void togglePlaylistArea(AWTEvent e) {
+		playlistAreaShowing = !playlistAreaShowing;
+
+		if (playlistAreaShowing) {
+			this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT + PLAYLIST_HEIGHT);
+			this.add(mainSeparator, BorderLayout.CENTER);
+			this.add(playlistPanel, BorderLayout.SOUTH);
+		}
+		else {
+			this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
+			this.remove(mainSeparator);
+			this.remove(playlistPanel);
+		}
+
+		controlsPanel.update((VLCStatus)null);
+	}
+	
+	protected void editKeybindsPopup(AWTEvent e) {
+		keybindEditor.setVisible(true);
 	}
 
 	private void startUpdateLoop() {

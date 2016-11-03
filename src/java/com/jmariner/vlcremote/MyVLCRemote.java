@@ -223,6 +223,10 @@ public class MyVLCRemote {
 		}
 	}
 
+	public void incrementVolume(double percentToChange) {
+		playbackVolume += percentToChange;
+	}
+	
 	private static float convertVolume(double volumePercent) {
 		return (float) (Math.log(volumePercent) / Math.log(10.0) * 20.0);
 	}
@@ -422,6 +426,7 @@ public class MyVLCRemote {
 	@AllArgsConstructor
 	public enum Command {
 		PLAY			("pl_play", 	"Play: Start or resume playback"),
+		TOGGLE_PLAY		("pl_pause",	"Toggle playback"),
 		PAUSE			("pl_pause", 	"Pause: Pause playback"),
 		STOP			("pl_stop", 	"Stop: Stop playback"),
 		NEXT			("pl_next", 	"Next: Jump to next playlist item"),

@@ -28,10 +28,9 @@ public class MainMenuBar extends JMenuBar {
 
 	private JCheckBoxMenuItem instantPause;
 	private JCheckBoxMenuItem debugBorders;
-	private JMenuItem restartStream;
-	private JMenuItem gotoPreferences;
-	private JMenuItem updateDelayInput;
-	private JMenuItem setEqPreset;
+	private JMenuItem restartStream, gotoPreferences,
+						updateDelayInput, setEqPreset,
+						editKeybinds;
 	
 	private List<String> eqPresets;
 
@@ -54,11 +53,13 @@ public class MainMenuBar extends JMenuBar {
 		updateDelayInput = new JMenuItem("Set update delay");
 		instantPause = new JCheckBoxMenuItem("Enable instant pause");
 		setEqPreset = new JMenuItem("Equalizer...");
+		editKeybinds = new JMenuItem("Edit Keybinds...");
 
 		JMenu tools = new JMenu("Tools");
 		tools.setMnemonic(VK_T);
 		tools.add(restartStream);
 		tools.add(gotoPreferences);
+		tools.add(editKeybinds);
 
 		JMenu options = new JMenu("Options");
 		options.setMnemonic(VK_O);
@@ -85,6 +86,7 @@ public class MainMenuBar extends JMenuBar {
 		gotoPreferences.addActionListener(e -> UserSettings.viewPreferencesFile());
 		updateDelayInput.addActionListener(this::setUpdateDelay);
 		setEqPreset.addActionListener(this::setEqPreset);
+		editKeybinds.addActionListener(gui::editKeybindsPopup);
 	}
 	
 	protected void update(VLCStatus status) {
