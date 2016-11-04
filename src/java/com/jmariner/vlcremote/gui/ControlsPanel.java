@@ -1,8 +1,17 @@
 package com.jmariner.vlcremote.gui;
 
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
+import com.jmariner.vlcremote.MyVLCRemote;
+import com.jmariner.vlcremote.MyVLCRemote.Command;
+import com.jmariner.vlcremote.util.GuiUtils;
+import com.jmariner.vlcremote.util.SimpleIcon;
+import com.jmariner.vlcremote.util.UserSettings;
+import com.jmariner.vlcremote.util.VLCStatus;
+import com.jmariner.vlcremote.util.VLCStatus.State;
+import org.apache.commons.lang3.StringUtils;
+
+import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -15,30 +24,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import javax.swing.AbstractButton;
-import javax.swing.JButton;
-import javax.swing.JPanel;
-import javax.swing.JSlider;
-import javax.swing.JTextField;
-import javax.swing.JToggleButton;
-import javax.swing.event.ChangeEvent;
-
-import org.apache.commons.lang3.StringUtils;
-
-import com.jmariner.vlcremote.MyVLCRemote;
-import com.jmariner.vlcremote.MyVLCRemote.Command;
-import com.jmariner.vlcremote.util.GuiUtils;
-import com.jmariner.vlcremote.util.SimpleIcon;
-import com.jmariner.vlcremote.util.UserSettings;
-import com.jmariner.vlcremote.util.VLCStatus;
-import com.jmariner.vlcremote.util.VLCStatus.State;
-
 public class ControlsPanel extends JPanel {
 	
 	private RemoteInterface gui;
 	
 	private JButton nextButton, playPauseButton, prevButton;
-	private JToggleButton repeatToggleButton, loopToggleButton, shuffleToggleButton;
+	private JToggleButton toggleRepeatButton, toggleLoopButton, toggleShuffleButton;
 	private JToggleButton togglePlaylistButton;
 
 	private JButton toggleMuteButton;
@@ -54,19 +45,16 @@ public class ControlsPanel extends JPanel {
 		
 		init();
 		
-		gui.getControlComponents().addAll(
-				Arrays.asList(togglePlaylistButton, toggleMuteButton, volumeSlider, volumeTextField)
-		);
-		gui.getControlComponents().addAll(vlcControlButtons);
+		Arrays.asList(togglePlaylistButton, toggleMuteButton, volumeSlider, volumeTextField).forEach(gui::addControlComponent);
+		vlcControlButtons.forEach(gui::addControlComponent);
 		
 		initListeners();
 		
 		Arrays.asList(ControlsPanel.class.getDeclaredFields()).forEach(f -> {
 			try {
 				if (f.getType() == JButton.class || f.getType() == JToggleButton.class) {
-				//	f.setAccessible(true);
 					AbstractButton b = (AbstractButton) f.get(this);
-					gui.getButtons().put(f.getName().replace("Button", ""), b);
+					gui.getActions().put(f.getName().replace("Button", ""), b::doClick);
 				}
 			}
 			catch (ReflectiveOperationException e) {
@@ -88,17 +76,17 @@ public class ControlsPanel extends JPanel {
 		prevButton = new JButton(SimpleIcon.PREV.get());
 		prevButton.setActionCommand("PREV");
 
-		repeatToggleButton = new JToggleButton(SimpleIcon.REPEAT.get());
-		repeatToggleButton.setActionCommand("TOGGLE_REPEAT");
+		toggleRepeatButton = new JToggleButton(SimpleIcon.REPEAT.get());
+		toggleRepeatButton.setActionCommand("TOGGLE_REPEAT");
 
-		loopToggleButton = new JToggleButton(SimpleIcon.LOOP.get());
-		loopToggleButton.setActionCommand("TOGGLE_LOOP");
+		toggleLoopButton = new JToggleButton(SimpleIcon.LOOP.get());
+		toggleLoopButton.setActionCommand("TOGGLE_LOOP");
 
-		shuffleToggleButton = new JToggleButton(SimpleIcon.SHUFFLE.get());
-		shuffleToggleButton.setActionCommand("TOGGLE_RANDOM");
+		toggleShuffleButton = new JToggleButton(SimpleIcon.SHUFFLE.get());
+		toggleShuffleButton.setActionCommand("TOGGLE_RANDOM");
 		
 		vlcControlButtons = Arrays.asList(prevButton, playPauseButton, nextButton,
-				repeatToggleButton, loopToggleButton, shuffleToggleButton);
+				toggleRepeatButton, toggleLoopButton, toggleShuffleButton);
 		
 		togglePlaylistButton = new JToggleButton(SimpleIcon.PLAYLIST.get());
 		togglePlaylistButton.setToolTipText("Show playlist");
@@ -144,18 +132,6 @@ public class ControlsPanel extends JPanel {
 		togglePlaylistButton.addActionListener(gui::togglePlaylistArea);
 	}
 	
-	protected void togglePlaying() {
-		playPauseButton.doClick();
-	}
-	
-	protected void next() {
-		nextButton.doClick();
-	}
-	
-	protected void previous() {
-		prevButton.doClick();
-	}
-	
 	protected void updateVolume() {
 		int volume = volumeSlider.getValue();
 		if (!volumeTextField.hasFocus())
@@ -190,12 +166,12 @@ public class ControlsPanel extends JPanel {
 		boolean repeat = status.isRepeat();
 		boolean shuffle = status.isShuffle();
 
-		if (loopToggleButton.isSelected() != loop)
-			loopToggleButton.setSelected(loop);
-		if (repeatToggleButton.isSelected() != repeat)
-			repeatToggleButton.setSelected(repeat);
-		if (shuffleToggleButton.isSelected() != shuffle)
-			shuffleToggleButton.setSelected(shuffle);
+		if (toggleLoopButton.isSelected() != loop)
+			toggleLoopButton.setSelected(loop);
+		if (toggleRepeatButton.isSelected() != repeat)
+			toggleRepeatButton.setSelected(repeat);
+		if (toggleShuffleButton.isSelected() != shuffle)
+			toggleShuffleButton.setSelected(shuffle);
 	}
 	
 	private void playPausePressed(ActionEvent e) {

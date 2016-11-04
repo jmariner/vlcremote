@@ -29,17 +29,15 @@ public class PlaylistPanel extends JPanel {
 	protected PlaylistPanel(RemoteInterface gui) {
 		super(new BorderLayout(0, 10));
 		this.gui = gui;
-		init();
-		initListeners();
 	}
 
-	private void init() {
+	public void init() {
 		Map<Integer, SongItem> songMap = gui.getRemote().getSongMap();
 
 		DefaultListModel<SongItem> playlist = new DefaultListModel<>();
 		songMap.values().stream().forEachOrdered(playlist::addElement);
 
-		list = new JXList(playlist);
+		list = new PlaylistList(playlist);
 		list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
 		sorter = new ListSortController<>(playlist);
@@ -82,6 +80,8 @@ public class PlaylistPanel extends JPanel {
 		this.add(playSelected, BorderLayout.SOUTH);
 
 		gui.setPlaylistAreaShowing(false);
+
+		initListeners();
 	}
 
 	private void initListeners() {
@@ -107,6 +107,21 @@ public class PlaylistPanel extends JPanel {
 		int max = selected > size-6 ? size-1 : selected+5;
 		Rectangle r = list.getCellBounds(min, max);
 		list.scrollRectToVisible(r);
+	}
+
+	public void startSearch() {
+		if (!gui.isPlaylistAreaShowing())
+			gui.togglePlaylistArea(null);
+		searchField.requestFocusInWindow();
+	}
+
+	private class PlaylistList extends JXList {
+		public PlaylistList(ListModel<?> m) {
+			super(m);
+		}
+
+		@Override
+		protected void doFind() {}
 	}
 
 	private class PlaylistSearchListener implements DocumentListener {

@@ -1,38 +1,29 @@
 package com.jmariner.vlcremote.gui;
 
-import java.awt.AWTEvent;
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Dimension;
-import java.awt.GridLayout;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Vector;
-import java.util.prefs.Preferences;
-import java.util.stream.Collectors;
+import com.jmariner.vlcremote.util.InvalidHotkeyStringException;
+import com.jmariner.vlcremote.util.UserSettings;
+import com.tulskiy.keymaster.AWTTest;
+import lombok.extern.slf4j.Slf4j;
 
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JDialog;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.ListSelectionModel;
-import javax.swing.ScrollPaneConstants;
-import javax.swing.SwingConstants;
-import javax.swing.UIManager;
+import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Vector;
+import java.util.prefs.Preferences;
+import java.util.stream.Collectors;
 
 import static com.jmariner.vlcremote.util.Constants.*;
-import com.jmariner.vlcremote.util.UserSettings;
 
+@Slf4j
 public class KeybindEditor extends JDialog {
 	
 	private RemoteInterface gui;
@@ -40,30 +31,39 @@ public class KeybindEditor extends JDialog {
 	private Preferences keybinds;
 	
 	private JPanel mainPanel;
-	private JLabel title;
 	private JButton editSelectedButton, saveButton;
 	private JTable table;
+
+	private Dialog keyPressDialog;
 	
-	private Map<String, String> keybindIdMap;
-	private Map<String, Runnable> actions;
+	private LinkedHashMap<String, String> keybindIdMap;
+
+	private List<String> idList = Arrays.asList(
+			"Play/Pause:playPause",
+			"Next:next",
+			"Previous:prev",
+			"Toggle Shuffle:toggleShuffle",
+			"Toggle Repeat:toggleRepeat",
+			"Toggle Loop:toggleLoop",
+			"Toggle Mute:toggleMute",
+			"Increase Volume:incVolume",
+			"Decrease Volume:decVolume",
+			"Search Playlist:searchPlaylist"
+	);
 	
 	public KeybindEditor(RemoteInterface gui) {
 		super(gui, "Keybind Editor", true);
 		
 		this.gui = gui;
 		
-		keybindIdMap = new HashMap<>();
-		actions = new HashMap<>();
+		keybindIdMap = new LinkedHashMap<>();
 		keybinds = UserSettings.getChild("keybinds");
 		
-		Arrays.asList(
-				"Play/Pause:playPause", "Next:next", "Previous:prev",
-				"Toggle Shuffle:toggleShuffle", "Toggle Repeat:toggleRepeat", "Toggle Loop:toggleLoop",
-				"Toggle Mute:toggleMute"
-		).forEach(s -> {
+		idList.stream().forEachOrdered(s -> {
 			String[] split = s.split(":");
+			assert gui.getActions().containsKey(split[1]);
+
 			keybindIdMap.put(split[0], split[1]);
-			actions.put(split[1], gui.getButton(split[1])::doClick);
 		});
 		
 		init();
@@ -71,20 +71,24 @@ public class KeybindEditor extends JDialog {
 		
 		this.add(mainPanel);
 		this.pack();
-		
-		//fix last cell highlight being cut off at the bottom
-		this.setSize(getWidth(), getHeight()+1);
+
+		this.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+
+		this.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosed(WindowEvent e) {
+				loadSettings();
+			}
+		});
 	}
 	
 	private void init() {
 				
 		table = new KeybindTable();
 		
-		table.setRowHeight(table.getRowHeight()+10);
-		
 		editSelectedButton = new JButton("Edit Selected");
 		saveButton = new JButton("Save & Exit");
-		title = new JLabel("Keybinds");
+		JLabel title = new JLabel("Keybinds");
 		title.setFont(FONT.deriveFont(18f).deriveFont(UNDERLINE));
 		
 		JPanel top = new JPanel(FLOW_CENTER);
@@ -94,10 +98,10 @@ public class KeybindEditor extends JDialog {
 		scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 		scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		
-		JPanel bottomLeft = new JPanel(FLOW_CENTER);
-		bottomLeft.add(editSelectedButton);
 		JPanel bottomRight = new JPanel(FLOW_CENTER);
-		bottomRight.add(saveButton);
+		bottomRight.add(editSelectedButton);
+		JPanel bottomLeft = new JPanel(FLOW_CENTER);
+		bottomLeft.add(saveButton);
 		
 		JPanel bottom = new JPanel(new GridLayout(1, 2));
 		bottom.add(bottomLeft);
@@ -112,16 +116,86 @@ public class KeybindEditor extends JDialog {
 	}
 	
 	private void initListeners() {
-		saveButton.addActionListener(this::saveAndClose);
+		saveButton.addActionListener(e -> this.dispose());
 		editSelectedButton.addActionListener(this::editSelectedKeybind);
+		table.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mouseClicked(MouseEvent e) {
+				if (e.getClickCount() == 2)
+					editSelectedKeybind(null);
+			}
+		});
 	}
-	
-	private void saveAndClose(AWTEvent e) {
-		
+
+	protected void loadSettings() {
+
+		gui.getHotkeyListener().clear();
+
+		keybindIdMap.values().forEach(s -> {
+			assert gui.getActions().containsKey(s);
+			String keystroke = keybinds.get(s, null);
+			if (keystroke != null) {
+				try {
+					Runnable a = gui.getAction(s);
+					gui.getHotkeyListener().registerHotkey(keystroke, a);
+				} catch (InvalidHotkeyStringException e) {
+					e.printStackTrace();
+				}
+			}
+		});
 	}
 	
 	private void editSelectedKeybind(AWTEvent e) {
-		
+		JPanel listener = new JPanel();
+		listener.addKeyListener(new KeybindListener());
+		listener.addHierarchyListener(e1 -> {
+			Window w = SwingUtilities.getWindowAncestor(listener);
+			if (w instanceof Dialog) {
+				keyPressDialog = (Dialog) w;
+				keyPressDialog.addWindowListener(new WindowAdapter() {
+					@Override
+					public void windowOpened(WindowEvent e) {
+						Arrays.asList(keyPressDialog.getComponents()).forEach(c -> c.setFocusable(false));
+						listener.setFocusable(true);
+						listener.requestFocusInWindow();
+					}
+				});
+			}
+		});
+
+		int choice = JOptionPane.showOptionDialog(this, listener, "Press a key...",
+				JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null,
+				new Object[]{"Unset", "Cancel"}, null
+		);
+
+		if (choice == 0) {
+			keybinds.remove(getSelectedId());
+		}
+	}
+
+	private class KeybindListener extends KeyAdapter {
+		@Override
+		public void keyPressed(KeyEvent e) {
+			if (!AWTTest.MODIFIERS.contains(e.getKeyCode())) {
+
+				String keyString = KeyStroke.getKeyStrokeForEvent(e).toString();
+
+				keyString = keyString.replace("pressed ", "");
+
+				table.setValueAt(keyString, table.getSelectedRow(), 1);
+
+				keybinds.put(getSelectedId(), keyString);
+
+				e.consume();
+
+				keyPressDialog.dispose();
+			}
+		}
+	}
+
+	private String getSelectedId() {
+		//noinspection RedundantCast
+		return keybindIdMap.get((String) table.getValueAt(table.getSelectedRow(), 0));
 	}
 	
 	private class KeybindTable extends JTable {
@@ -129,7 +203,7 @@ public class KeybindEditor extends JDialog {
 		private LineBorder highlightBorder;
 		private MatteBorder leftHighlight;
 		private MatteBorder rightHighlight;
-		
+
 		public KeybindTable() {
 			super();
 			
@@ -142,17 +216,15 @@ public class KeybindEditor extends JDialog {
 						))
 					)
 					.collect(Collectors.toCollection(Vector::new));
+
+			Vector<String> cols = new Vector<>(Arrays.asList("Action", "Keybind"));
 			
-			this.setModel(new DefaultTableModel(
-				data,
-				new Vector<>(Arrays.asList("Action", "Keybind"))
-			));
-			
+			this.setModel(new DefaultTableModel(data, cols));
 			this.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 			this.setRowSelectionAllowed(true);
 			this.setColumnSelectionAllowed(false);
 			this.setDefaultEditor(Object.class, null);
-			
+
 			highlightBorder = (LineBorder) UIManager.getBorder("Table.focusCellHighlightBorder");
 			leftHighlight = new MatteBorder(1, 1, 1, 0, highlightBorder.getLineColor());
 			rightHighlight = new MatteBorder(1, 0, 1, 1, highlightBorder.getLineColor());
@@ -169,10 +241,9 @@ public class KeybindEditor extends JDialog {
 					c.setBorder(rightHighlight);
 			}
 			
-			if (column == 1) {
-				((DefaultTableCellRenderer)renderer).setHorizontalAlignment(SwingConstants.RIGHT);
-			}
-			
+			((DefaultTableCellRenderer)renderer)
+					.setHorizontalAlignment(SwingConstants.CENTER);
+
 			return c;
 		}
 	}

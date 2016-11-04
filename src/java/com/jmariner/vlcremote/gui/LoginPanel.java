@@ -31,7 +31,7 @@ public class LoginPanel extends JPanel {
 		init();
 		initListeners();
 		
-		gui.getButtons().put("connect", connectButton);
+		gui.getActions().put("connect", connectButton::doClick);
 	}
 
 	private void init() {

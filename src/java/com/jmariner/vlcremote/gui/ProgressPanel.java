@@ -28,7 +28,7 @@ public class ProgressPanel extends JPanel {
 
 		init();
 		progressBar.addMouseListener(new ProgressBarMouseListener());
-		gui.getControlComponents().add(progressBar);
+		gui.addControlComponent(progressBar);
 	}
 
 	private void init() {

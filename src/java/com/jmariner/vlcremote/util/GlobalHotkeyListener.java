@@ -9,86 +9,83 @@ import javax.swing.*;
 
 import static java.awt.event.InputEvent.*;
 
+@SuppressWarnings("unused")
 @Slf4j
 public class GlobalHotkeyListener {
 
 	private Provider hotkeyProvider;
-	private Provider swingProvider;
 
 	public GlobalHotkeyListener() {
-
-		hotkeyProvider = Provider.getCurrentProvider(false);
-		swingProvider = Provider.getCurrentProvider(true);
-
+		this(false);
 	}
 
-	//----------------------register by key code and Mod modifier-----------------------------
+	private GlobalHotkeyListener(boolean swing) {
+		hotkeyProvider = Provider.getCurrentProvider(swing);
+	}
+
+	public static GlobalHotkeyListener getSwingInstance() {
+		return new GlobalHotkeyListener(true);
+	}
+
+	//----------------------register by key code and Mod modifier----------------------------
 
 	@SuppressWarnings("MagicConstant")
 	public void registerHotkey(int keyCode, Mod modifiers, Runnable action) {
-		register(KeyStroke.getKeyStroke(keyCode, modifiers.get()), false, action);
+		register(KeyStroke.getKeyStroke(keyCode, modifiers.get()), action);
 	}
 
-	@SuppressWarnings("MagicConstant")
-	public void registerSwingHotkey(int keyCode, Mod modifiers, Runnable action) {
-		register(KeyStroke.getKeyStroke(keyCode, modifiers.get()), true, action);
-	}
+	//----------------------register by key stroke string------------------------------------
 
-	//----------------------register by key stroke string-------------------------------------
+	/**
+	 * @see KeyStroke#getKeyStroke(String)
+	 */
+	public void registerHotkey(String keyStroke, Runnable action)
+			throws InvalidHotkeyStringException {
 
-	public void registerHotkey(String keyStroke, Runnable action) throws Exception {
-		registerFromString(keyStroke, false, action);
-	}
-
-	public void registerSwingHotkey(String keyStroke, Runnable action) throws Exception {
-		registerFromString(keyStroke, true, action);
-	}
-
-	// TODO create an InvalidHotkeyException for this and its accessors to throw
-	private void registerFromString(String keyStroke, boolean isSwing, Runnable action) throws Exception {
 		KeyStroke k = KeyStroke.getKeyStroke(keyStroke);
 
+		//hotkey string was invalid
 		if (k == null) {
+			//try to capitalize the last token
 			int last = keyStroke.lastIndexOf(" ");
 			keyStroke = keyStroke.substring(0, last) + keyStroke.substring(last).toUpperCase();
 			k = KeyStroke.getKeyStroke(keyStroke);
-			if (k == null) throw new Exception("Invaild keystoke syntax: \"" + keyStroke + "\"");
+			//still didn't work? give up
+			if (k == null) throw new InvalidHotkeyStringException("Invalid hotkey syntax: \"" + keyStroke + "\"");
 		}
 
-		register(k, isSwing, action);
+		register(k, action);
 	}
 
-	//----------------------------register media keys-----------------------------------------
+	//----------------------------register media key-----------------------------------------
 
 	public void registerHotkey(MediaKey k, Runnable action) {
-		register(k, false, action);
+		register(k, action);
 	}
 
-	public void registerSwingHotkey(MediaKey k, Runnable action) {
-		register(k, true, action);
+	//------------------------primary method-------------------------------------------------
+
+	private void register(Object k, Runnable action) {
+
+		assert k instanceof MediaKey || k instanceof KeyStroke;
+
+		if (k instanceof MediaKey)
+			hotkeyProvider.register((MediaKey) k, h -> action.run());
+		if (k instanceof KeyStroke)
+			hotkeyProvider.register((KeyStroke) k, h -> action.run());
 	}
 
-	//------------------------primary methods-------------------------------------------------
+	//-------------------------------other---------------------------------------------------
 
-	private void register(KeyStroke k, boolean swing, Runnable action) {
-		if (swing) {
-			hotkeyProvider.register(k, h -> action.run());
-		}
-		else {
-			swingProvider.register(k, h -> action.run());
-		}
+	public void clear() {
+		hotkeyProvider.reset();
 	}
 
-	private void register(MediaKey k, boolean swing, Runnable action) {
-		if (swing) {
-			hotkeyProvider.register(k, h -> action.run());
-		}
-		else {
-			swingProvider.register(k, h -> action.run());
-		}
+	public void cleanup() {
+		hotkeyProvider.stop();
 	}
 
-	//----------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------
 
 	@SuppressWarnings("unused")
 	@AllArgsConstructor

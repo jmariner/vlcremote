@@ -2,7 +2,10 @@ package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
-import com.jmariner.vlcremote.util.*;
+import com.jmariner.vlcremote.util.GlobalHotkeyListener;
+import com.jmariner.vlcremote.util.GuiUtils;
+import com.jmariner.vlcremote.util.UserSettings;
+import com.jmariner.vlcremote.util.VLCStatus;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -16,7 +19,8 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.FontUIResource;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -25,17 +29,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static com.jmariner.vlcremote.util.Constants.*;
-import static com.jmariner.vlcremote.util.GlobalHotkeyListener.Mod.NONE;
-import static com.tulskiy.keymaster.common.MediaKey.*;
-import static java.awt.event.KeyEvent.*;
+import static java.awt.event.KeyEvent.VK_ESCAPE;
 import static javax.swing.JOptionPane.*;
 
 @Slf4j
-@SuppressWarnings("FieldCanBeLocal")
+@SuppressWarnings({"FieldCanBeLocal", "UnusedParameters"})
 public class RemoteInterface extends JFrame {
 
 	@Getter(AccessLevel.PROTECTED)
 	private MyVLCRemote remote;
+	@Getter(AccessLevel.PROTECTED)
+	private GlobalHotkeyListener hotkeyListener;
 
 	private MainMenuBar menuBar;
 
@@ -54,7 +58,6 @@ public class RemoteInterface extends JFrame {
 	
 	private KeybindEditor keybindEditor;
 	
-	@Getter
 	private List<JComponent> controlComponents = new ArrayList<>();
 	
 	@Getter
@@ -85,18 +88,22 @@ public class RemoteInterface extends JFrame {
 		}
 		
 		actions = new HashMap<>();
+		hotkeyListener = new GlobalHotkeyListener();
 
 		menuBar = new MainMenuBar(this);
 		loginPanel = new LoginPanel(this);
 		statusPanel = new StatusPanel();
 		progressPanel = new ProgressPanel(this);
 		controlsPanel = new ControlsPanel(this);
-		keybindEditor = new KeybindEditor(this);
+		playlistPanel = new PlaylistPanel(this);
 
 		controlComponents.forEach(c -> {
-			c.addKeyListener(new ControlsKeyListener());
+			c.addKeyListener(new ClearFocusListener());
 			c.setEnabled(false);
 		});
+
+		initActions();
+		keybindEditor = new KeybindEditor(this);
 
 		mainPanel = new JPanel(new BorderLayout(0, 20));
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
@@ -129,24 +136,14 @@ public class RemoteInterface extends JFrame {
 	private void loadSettings() {
 		menuBar.loadSettings();
 		loginPanel.loadSettings();
+		keybindEditor.loadSettings();
 	}
 
-	/* 	TODO create a menu to edit hotkeys. ask user to input a hotkey and use KeyStroke.getKeyStroke(SomeEvent e)
-		to get it. ignore control/alt/shift/meta keys as normal keys, only allow their use as mask keys
-
-		keypad keys are temporary and will be removed to allow user to customize them
-		gotta figure out saving hotkey info?
-	*/
-	private void initHotkeys() {
-		GlobalHotkeyListener g = new GlobalHotkeyListener();
-		
-		g.registerHotkey(MEDIA_PLAY_PAUSE, getButton("playPause")::doClick);
-		g.registerHotkey(MEDIA_NEXT_TRACK, getButton("next")::doClick);
-		g.registerHotkey(MEDIA_PREV_TRACK, getButton("prev")::doClick);
-
-		g.registerHotkey(VK_ADD,		NONE, getButton("playPause")::doClick);
-		g.registerHotkey(VK_MULTIPLY, 	NONE, getButton("next")::doClick);
-		g.registerHotkey(VK_DIVIDE, 	NONE, getButton("prev")::doClick);
+	private void initActions() {
+		double step = UserSettings.getDouble("volumeStep", 0.05);
+		actions.put("incVolume", () -> remote.incrementVolume(step));
+		actions.put("decVolume", () -> remote.incrementVolume(-step));
+		actions.put("searchPlaylist", playlistPanel::startSearch);
 	}
 	
 	protected Runnable getAction(String name) {
@@ -168,8 +165,7 @@ public class RemoteInterface extends JFrame {
 
 			controlComponents.forEach(b -> b.setEnabled(true));
 
-			playlistPanel = new PlaylistPanel(this);
-			initHotkeys();
+			playlistPanel.init();
 
 			remote.setSourceVolume(1);
 			remote.sendCommand(Command.PLAY);
@@ -236,6 +232,10 @@ public class RemoteInterface extends JFrame {
 		
 		menuBar.update(status);
 
+	}
+
+	protected void addControlComponent(JComponent c) {
+		controlComponents.add(c);
 	}
 	
 	protected void togglePlaylistArea(AWTEvent e) {
@@ -307,7 +307,7 @@ public class RemoteInterface extends JFrame {
 		JOptionPane.showMessageDialog(this, GuiUtils.restrictDialogWidth(text), title, messageType);
 	}
 
-	private class ControlsKeyListener implements KeyListener {
+	private class ClearFocusListener implements KeyListener {
 
 		public void keyTyped(KeyEvent e) {}
 		public void keyReleased(KeyEvent e) {}
@@ -326,6 +326,7 @@ public class RemoteInterface extends JFrame {
 				remote.stopStream();
 				remote.sendCommand(Command.PAUSE);
 			}
+			hotkeyListener.cleanup();
 		}
 	}
 

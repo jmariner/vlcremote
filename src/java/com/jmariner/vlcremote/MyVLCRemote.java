@@ -69,10 +69,6 @@ public class MyVLCRemote {
 		
 	}
 
-	public MyVLCRemote(String host, int webPort, String password, int streamPort) {
-		this(host, webPort, password, streamPort, null);
-	}
-
 	private void loadSongList() {
 
 		songMap = new HashMap<>();
