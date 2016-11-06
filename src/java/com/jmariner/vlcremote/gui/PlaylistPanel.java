@@ -40,7 +40,7 @@ public class PlaylistPanel extends JPanel {
 
 	private JXList list;
 	private JTextField searchField;
-	private JButton playSelectedButton, favoriteButton;
+	private JButton playSelectedButton, favoriteButton, jumpToSelectedButton;
 	private JToggleButton showFavoritesButton;
 
 	private ListSortController<ListModel<SongItem>> sorter;
@@ -101,6 +101,7 @@ public class PlaylistPanel extends JPanel {
 		playSelectedButton = new JButton("Play Selected");
 		favoriteButton = new JButton("Favorite Selected");
 		showFavoritesButton = new JToggleButton(showFavorites);
+		jumpToSelectedButton = new JButton("View Selected");
 
 		searchField = new JTextField(20);
 		JPanel playlistSearch = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
@@ -114,7 +115,7 @@ public class PlaylistPanel extends JPanel {
 
 		JPanel bottomLeft = new JPanel(FLOW_CENTER);
 		JPanel bottomRight = new JPanel(FLOW_CENTER);
-		JPanel bottom = new JPanel(new GridLayout(1, 2));
+		JPanel bottom = new JPanel(new GridLayout(1, 3));
 		
 		bottomLeft.add(favoriteButton);
 		bottomRight.add(playSelectedButton);
@@ -139,7 +140,6 @@ public class PlaylistPanel extends JPanel {
 		
 		list.setModel(playlist);
 		sorter = new ListSortController<>(playlist);
-		sorter.setRowFilter(filter);
 		list.setRowSorter(sorter);
 	}
 	
@@ -147,6 +147,7 @@ public class PlaylistPanel extends JPanel {
 		playSelectedButton.addActionListener(this::switchSongToSelected);
 		favoriteButton.addActionListener(this::favoriteSelected);
 		showFavoritesButton.addActionListener(this::toggleFavorites);
+		jumpToSelectedButton.addActionListener(this::jumpToSelected);
 		
 		list.addMouseListener(new PlaylistMouseListener());
 		list.addListSelectionListener(e -> update());
@@ -201,6 +202,16 @@ public class PlaylistPanel extends JPanel {
 		else {
 			showFavoritesButton.setIcon(showFavorites);
 		}
+		sorter.setRowFilter(filter);
+	}
+	
+	private void jumpToSelected(AWTEvent e) {
+		int selected = list.getSelectedIndex();
+		int size = list.getModel().getSize();
+		int min = selected < 5 ? 0 : selected-5;
+		int max = selected > size-6 ? size-1 : selected+5;
+		Rectangle r = list.getCellBounds(min, max);
+		list.scrollRectToVisible(r);
 	}
 	
 	protected void update() {
@@ -218,12 +229,7 @@ public class PlaylistPanel extends JPanel {
 		list.setSelectedIndex( // TODO setSelectedValue doesn't work here for some reason
 				gui.getRemote().transformPlaylistID(status.getCurrentID())
 		);
-		int selected = list.getSelectedIndex();
-		int size = list.getModel().getSize();
-		int min = selected < 5 ? 0 : selected-5;
-		int max = selected > size-6 ? size-1 : selected+5;
-		Rectangle r = list.getCellBounds(min, max);
-		list.scrollRectToVisible(r);
+		jumpToSelected(null);
 	}
 
 	public void startSearch() {
@@ -272,6 +278,7 @@ public class PlaylistPanel extends JPanel {
 
 		@Override
 		public void changedUpdate(DocumentEvent e) {
+			sorter.setRowFilter(filter);
 		}
 	}
 
