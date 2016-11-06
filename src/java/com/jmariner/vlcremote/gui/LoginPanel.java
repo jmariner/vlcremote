@@ -1,11 +1,13 @@
 package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.util.GuiUtils;
+import com.jmariner.vlcremote.util.RegexFilter;
 import com.jmariner.vlcremote.util.UserSettings;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.text.PlainDocument;
+
 import java.awt.*;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -17,7 +19,7 @@ import static javax.swing.JOptionPane.YES_NO_OPTION;
 public class LoginPanel extends JPanel {
 
 	private RemoteInterface gui;
-
+	
 	private JTextField hostField, webPortField, streamPortField;
 	private JPasswordField passwordField;
 	private JButton connectButton;
@@ -36,14 +38,18 @@ public class LoginPanel extends JPanel {
 
 	private void init() {
 		hostField = new JTextField();
-		webPortField = new JFormattedTextField(NumberFormat.getNumberInstance());
-		streamPortField = new JFormattedTextField(NumberFormat.getNumberInstance());
+		webPortField = new JTextField();
+		streamPortField = new JTextField();
 		passwordField = new JPasswordField();
 
 		hostField.setColumns(20);
 		webPortField.setColumns(5);
 		streamPortField.setColumns(5);
 		passwordField.setColumns(20);
+		
+		RegexFilter numbersOnlyFilter = new RegexFilter("\\d");
+		((PlainDocument) webPortField.getDocument()).setDocumentFilter(numbersOnlyFilter);
+		((PlainDocument) streamPortField.getDocument()).setDocumentFilter(numbersOnlyFilter);
 
 		connectButton = new JButton("Connect");
 

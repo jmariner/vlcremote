@@ -2,15 +2,15 @@ package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
-import com.jmariner.vlcremote.util.GlobalHotkeyListener;
+import com.jmariner.vlcremote.util.GlobalHotkeyHandler;
 import com.jmariner.vlcremote.util.GuiUtils;
+import com.jmariner.vlcremote.util.LocalHotkeyHandler;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.intellij.lang.annotations.MagicConstant;
@@ -21,6 +21,8 @@ import javax.swing.plaf.FontUIResource;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -32,14 +34,15 @@ import static com.jmariner.vlcremote.util.Constants.*;
 import static java.awt.event.KeyEvent.VK_ESCAPE;
 import static javax.swing.JOptionPane.*;
 
-@Slf4j
 @SuppressWarnings({"FieldCanBeLocal", "UnusedParameters"})
 public class RemoteInterface extends JFrame {
 
 	@Getter(AccessLevel.PROTECTED)
 	private MyVLCRemote remote;
 	@Getter(AccessLevel.PROTECTED)
-	private GlobalHotkeyListener hotkeyListener;
+	private GlobalHotkeyHandler globalHotkeyHandler;
+	@Getter(AccessLevel.PROTECTED)
+	private LocalHotkeyHandler localHotkeyHandler;
 
 	private MainMenuBar menuBar;
 
@@ -88,7 +91,6 @@ public class RemoteInterface extends JFrame {
 		}
 		
 		actions = new HashMap<>();
-		hotkeyListener = new GlobalHotkeyListener();
 
 		menuBar = new MainMenuBar(this);
 		loginPanel = new LoginPanel(this);
@@ -96,14 +98,6 @@ public class RemoteInterface extends JFrame {
 		progressPanel = new ProgressPanel(this);
 		controlsPanel = new ControlsPanel(this);
 		playlistPanel = new PlaylistPanel(this);
-
-		controlComponents.forEach(c -> {
-			c.addKeyListener(new ClearFocusListener());
-			c.setEnabled(false);
-		});
-
-		initActions();
-		keybindEditor = new KeybindEditor(this);
 
 		mainPanel = new JPanel(new BorderLayout(0, 20));
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
@@ -115,6 +109,18 @@ public class RemoteInterface extends JFrame {
 
 		mainSeparator = new JSeparator();
 
+		ClearFocusListener clearFocus = new ClearFocusListener();
+		
+		controlComponents.forEach(c -> {
+			c.addKeyListener(clearFocus);
+			c.setEnabled(false);
+		});
+		
+		Arrays.asList(mainPanel, playlistPanel, loginPanel,
+				progressPanel, controlsPanel, statusPanel, mainSeparator).forEach(c -> {
+			c.addMouseListener(clearFocus);
+		});
+
 		this.setLayout(new BorderLayout());
 		this.add(mainPanel, BorderLayout.NORTH);
 		this.setJMenuBar(menuBar);
@@ -123,6 +129,13 @@ public class RemoteInterface extends JFrame {
 		this.setResizable(false);
 		this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		Runtime.getRuntime().addShutdownHook(new CleanupOnShutdown());
+		
+		initActions();
+		
+		globalHotkeyHandler = new GlobalHotkeyHandler();
+		localHotkeyHandler = new LocalHotkeyHandler(this);
+		
+		keybindEditor = new KeybindEditor(this);
 
 		loadSettings();
 		if (UserSettings.getBoolean("autoconnect", false)) {
@@ -137,12 +150,21 @@ public class RemoteInterface extends JFrame {
 		menuBar.loadSettings();
 		loginPanel.loadSettings();
 		keybindEditor.loadSettings();
+		playlistPanel.loadSettings();
 	}
 
 	private void initActions() {
-		double step = UserSettings.getDouble("volumeStep", 0.05);
-		actions.put("incVolume", () -> remote.incrementVolume(step));
-		actions.put("decVolume", () -> remote.incrementVolume(-step));
+		int step = UserSettings.getInt("volumeStep", 5);
+		
+		actions.put("incVolume", () -> {
+			remote.incrementVolume(step);
+			controlsPanel.updateVolume();
+		});
+		actions.put("decVolume", () -> {
+			remote.incrementVolume(-step);
+			controlsPanel.updateVolume();
+		});
+		
 		actions.put("searchPlaylist", playlistPanel::startSearch);
 	}
 	
@@ -165,7 +187,7 @@ public class RemoteInterface extends JFrame {
 
 			controlComponents.forEach(b -> b.setEnabled(true));
 
-			playlistPanel.init();
+			playlistPanel.initPost();
 
 			remote.setSourceVolume(1);
 			remote.sendCommand(Command.PLAY);
@@ -307,15 +329,19 @@ public class RemoteInterface extends JFrame {
 		JOptionPane.showMessageDialog(this, GuiUtils.restrictDialogWidth(text), title, messageType);
 	}
 
-	private class ClearFocusListener implements KeyListener {
-
-		public void keyTyped(KeyEvent e) {}
-		public void keyReleased(KeyEvent e) {}
-
+	private class ClearFocusListener extends MouseAdapter implements KeyListener {
 		@Override
 		public void keyPressed(KeyEvent e) {
 			if (e.getKeyCode() == VK_ESCAPE)
 				clearFocus();
+		}
+
+		public void keyTyped(KeyEvent e) {}
+		public void keyReleased(KeyEvent e) {}
+		
+		@Override
+		public void mouseClicked(MouseEvent e) {
+			clearFocus();
 		}
 	}
 
@@ -326,7 +352,7 @@ public class RemoteInterface extends JFrame {
 				remote.stopStream();
 				remote.sendCommand(Command.PAUSE);
 			}
-			hotkeyListener.cleanup();
+			globalHotkeyHandler.cleanup();
 		}
 	}
 

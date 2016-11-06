@@ -45,8 +45,8 @@ public class MyVLCRemote {
 	@Getter
 	private boolean playingStream;
 
-	@Setter
-	private double playbackVolume;
+	@Getter @Setter
+	private int playbackVolume;
 	private SourceDataLine playbackLine;
 
 	@Setter
@@ -61,7 +61,7 @@ public class MyVLCRemote {
 		httpPassword = password;
 		exceptionHandler = handler;
 
-		playbackVolume = 1;
+		playbackVolume = 100;
 
 		loadSongList();
 
@@ -195,7 +195,7 @@ public class MyVLCRemote {
 				numBytes = remaining;
 
 				if (gainControl.getValue() != convertVolume(playbackVolume)) {
-					if (playbackVolume > 2) playbackVolume = 2;
+					if (playbackVolume > 200) playbackVolume = 200;
 					if (playbackVolume < 0) playbackVolume = 0;
 					gainControl.setValue(convertVolume(playbackVolume));
 				}
@@ -219,12 +219,13 @@ public class MyVLCRemote {
 		}
 	}
 
-	public void incrementVolume(double percentToChange) {
+	public void incrementVolume(int percentToChange) {
 		playbackVolume += percentToChange;
 	}
 	
-	private static float convertVolume(double volumePercent) {
-		return (float) (Math.log(volumePercent) / Math.log(10.0) * 20.0);
+	private static float convertVolume(int percentVolume) {
+		double percentVol = percentVolume / 100.0;
+		return (float) (Math.log(percentVol) / Math.log(10.0) * 20.0);
 	}
 
 	public boolean testConnection() {

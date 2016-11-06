@@ -3,6 +3,7 @@ package com.jmariner.vlcremote.gui;
 import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
 import com.jmariner.vlcremote.util.GuiUtils;
+import com.jmariner.vlcremote.util.RegexFilter;
 import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
@@ -11,6 +12,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
+import javax.swing.text.PlainDocument;
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
@@ -108,6 +111,9 @@ public class ControlsPanel extends JPanel {
 		
 		volumeTextField = new JTextField("100%", 5);
 		volumeTextField.setToolTipText("Enter volume from 0 to 200 percent");
+		((PlainDocument) volumeTextField.getDocument()).setDocumentFilter(
+				new RegexFilter("[%\\d]")
+		);
 		
 		JPanel rightHalf = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
 		Stream.of(toggleMuteButton, volumeSlider, volumeTextField).forEachOrdered(rightHalf::add);
@@ -132,10 +138,18 @@ public class ControlsPanel extends JPanel {
 		togglePlaylistButton.addActionListener(gui::togglePlaylistArea);
 	}
 	
+	protected void incrementVolume(double step) {
+	//	volumeSlider.set
+	}
+	
 	protected void updateVolume() {
+		
+		volumeSlider.setValue(gui.getRemote().getPlaybackVolume());
+		
 		int volume = volumeSlider.getValue();
 		if (!volumeTextField.hasFocus())
 			volumeTextField.setText(volume + "%");
+		
 		SimpleIcon volumeIcon =
 				gui.isMuted() ? SimpleIcon.VOLUME_OFF :
 				volume == 0 ? SimpleIcon.VOLUME_NONE :
@@ -199,9 +213,8 @@ public class ControlsPanel extends JPanel {
 	}
 
 	private void volumeChanged(ChangeEvent e) {
-		double percentVolume = volumeSlider.getValue() / 100.0;
 		if (gui.isMuted()) gui.setMuted(false);
-		gui.getRemote().setPlaybackVolume(percentVolume);
+		gui.getRemote().setPlaybackVolume(volumeSlider.getValue());
 	}
 
 	private void volumeInputted(ActionEvent e) {
@@ -209,7 +222,8 @@ public class ControlsPanel extends JPanel {
 		if (!StringUtils.isNumeric(input)) {
 			Matcher match = Pattern.compile("^(\\d+)%$").matcher(input);
 			if (!match.find()) {
-				gui.handleException(new IllegalArgumentException("Input value must be an integer or percentage. Entered: " + input));
+				gui.handleException(new IllegalArgumentException(
+						"Input value must be an integer or percentage. Entered: " + input));
 				return;
 			}
 			input = match.group(1);

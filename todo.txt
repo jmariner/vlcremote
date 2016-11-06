@@ -1,6 +1,4 @@
-global keyboard shortcuts
-    menu to change local and global keyboard shortcuts, just like VLC
-    disable repeated hotkey presses when holding down key
+handle the OS's repeated keypresses for local events (globals dont repeat)
 
 option to only shuffle/loop through filtered song list (may not be easy, will need to wait for song to change normally and then switch the song again to the next song in the filtered list, or to a random one from that list if shuffle is on. maybe find a way to handle it from VLC?)
 

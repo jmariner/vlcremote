@@ -3,12 +3,8 @@ package com.jmariner.vlcremote.gui;
 import com.jmariner.vlcremote.util.InvalidHotkeyStringException;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.tulskiy.keymaster.AWTTest;
-import lombok.extern.slf4j.Slf4j;
-
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
-import javax.swing.border.MatteBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
@@ -23,12 +19,12 @@ import java.util.stream.Collectors;
 
 import static com.jmariner.vlcremote.util.Constants.*;
 
-@Slf4j
 public class KeybindEditor extends JDialog {
 	
 	private RemoteInterface gui;
 	
-	private Preferences keybinds;
+	private Preferences globalKeybinds;
+	private Preferences localKeybinds;
 	
 	private JPanel mainPanel;
 	private JButton editSelectedButton, saveButton;
@@ -37,8 +33,14 @@ public class KeybindEditor extends JDialog {
 	private Dialog keyPressDialog;
 	
 	private LinkedHashMap<String, String> keybindIdMap;
+	
+	private static final String QUERY_STRING = "Press a key...";
+	private static final String DISABLED_STRING = "[Disabled]";
+	
+	private static final int LOCAL_COL = 2;
+	private static final int GLOBAL_COL = 1;
 
-	private List<String> idList = Arrays.asList(
+	private static final List<String> idList = Arrays.asList(
 			"Play/Pause:playPause",
 			"Next:next",
 			"Previous:prev",
@@ -51,13 +53,19 @@ public class KeybindEditor extends JDialog {
 			"Search Playlist:searchPlaylist"
 	);
 	
-	public KeybindEditor(RemoteInterface gui) {
+	private static final List<String> localOnly = 
+			Arrays.asList("searchPlaylist");
+	private static final List<String> globalOnly = 
+			Arrays.asList("");
+	
+	protected KeybindEditor(RemoteInterface gui) {
 		super(gui, "Keybind Editor", true);
 		
 		this.gui = gui;
 		
 		keybindIdMap = new LinkedHashMap<>();
-		keybinds = UserSettings.getChild("keybinds");
+		globalKeybinds = UserSettings.getChild("globalKeybinds");
+		localKeybinds  = UserSettings.getChild("localKeybinds");
 		
 		idList.stream().forEachOrdered(s -> {
 			String[] split = s.split(":");
@@ -75,6 +83,11 @@ public class KeybindEditor extends JDialog {
 		this.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 
 		this.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowActivated(WindowEvent e) {
+				gui.getGlobalHotkeyHandler().clear();
+				gui.getLocalHotkeyHandler().clear();
+			}
 			@Override
 			public void windowClosed(WindowEvent e) {
 				loadSettings();
@@ -99,9 +112,9 @@ public class KeybindEditor extends JDialog {
 		scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 		
 		JPanel bottomRight = new JPanel(FLOW_CENTER);
-		bottomRight.add(editSelectedButton);
 		JPanel bottomLeft = new JPanel(FLOW_CENTER);
-		bottomLeft.add(saveButton);
+		bottomLeft.add(editSelectedButton);
+		bottomRight.add(saveButton);
 		
 		JPanel bottom = new JPanel(new GridLayout(1, 2));
 		bottom.add(bottomLeft);
@@ -118,35 +131,33 @@ public class KeybindEditor extends JDialog {
 	private void initListeners() {
 		saveButton.addActionListener(e -> this.dispose());
 		editSelectedButton.addActionListener(this::editSelectedKeybind);
-		table.addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseClicked(MouseEvent e) {
-				if (e.getClickCount() == 2)
-					editSelectedKeybind(null);
-			}
-		});
+		table.addMouseListener(new DoubleClickListener());
 	}
 
 	protected void loadSettings() {
-
-		gui.getHotkeyListener().clear();
-
-		keybindIdMap.values().forEach(s -> {
-			assert gui.getActions().containsKey(s);
-			String keystroke = keybinds.get(s, null);
-			if (keystroke != null) {
-				try {
-					Runnable a = gui.getAction(s);
-					gui.getHotkeyListener().registerHotkey(keystroke, a);
-				} catch (InvalidHotkeyStringException e) {
-					e.printStackTrace();
-				}
-			}
+		keybindIdMap.values().forEach(actionID -> {
+			assert gui.getActions().containsKey(actionID);
+			String globalKeystroke = globalKeybinds.get(actionID, null);
+			String localKeystroke = localKeybinds.get(actionID, null);
+			if (globalKeystroke != null) tryToRegister(globalKeystroke, actionID, true);
+			if (localKeystroke != null) tryToRegister(localKeystroke, actionID, false);
 		});
 	}
 	
+	private void tryToRegister(String keystroke, String actionID, boolean global) {
+		try {
+			if (global)
+				gui.getGlobalHotkeyHandler().registerHotkey(keystroke, gui.getAction(actionID));
+			else
+				gui.getLocalHotkeyHandler().registerHotkey(keystroke, actionID);
+		} catch (InvalidHotkeyStringException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	private void editSelectedKeybind(AWTEvent e) {
-		JPanel listener = new JPanel();
+		JPanel listener = new JPanel(FLOW_CENTER);
+		listener.add(new JLabel(QUERY_STRING));
 		listener.addKeyListener(new KeybindListener());
 		listener.addHierarchyListener(e1 -> {
 			Window w = SwingUtilities.getWindowAncestor(listener);
@@ -163,16 +174,40 @@ public class KeybindEditor extends JDialog {
 			}
 		});
 
-		int choice = JOptionPane.showOptionDialog(this, listener, "Press a key...",
+		int choice = JOptionPane.showOptionDialog(this, listener, QUERY_STRING,
 				JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null,
 				new Object[]{"Unset", "Cancel"}, null
 		);
 
 		if (choice == 0) {
-			keybinds.remove(getSelectedId());
+			table.setValueAt("", table.getSelectedRow(), table.getSelectedColumn());
+			globalKeybinds.remove(getSelectedId());
 		}
 	}
 
+	private String getSelectedId() {
+		int r = table.getSelectedRow();
+		if (r == -1)
+			return "";
+		else
+			//noinspection RedundantCast
+			return keybindIdMap.get((String) table.getValueAt(r, 0));
+	}
+	
+	private class DoubleClickListener extends MouseAdapter {
+		@Override
+		public void mouseClicked(MouseEvent e) {
+			if (e.getClickCount() == 2) {
+				int c = table.getSelectedColumn();
+				if (c == LOCAL_COL || c == GLOBAL_COL) {
+					if (!(localOnly.contains(getSelectedId()) && c == GLOBAL_COL) &&
+						!(globalOnly.contains(getSelectedId()) && c == LOCAL_COL))
+							editSelectedKeybind(e);
+				}
+			}
+		}
+	}
+	
 	private class KeybindListener extends KeyAdapter {
 		@Override
 		public void keyPressed(KeyEvent e) {
@@ -182,9 +217,12 @@ public class KeybindEditor extends JDialog {
 
 				keyString = keyString.replace("pressed ", "");
 
-				table.setValueAt(keyString, table.getSelectedRow(), 1);
+				table.setValueAt(keyString, table.getSelectedRow(), table.getSelectedColumn());
 
-				keybinds.put(getSelectedId(), keyString);
+				if (table.isColumnSelected(1))
+					globalKeybinds.put(getSelectedId(), keyString);
+				else if (table.isColumnSelected(2))
+					localKeybinds.put(getSelectedId(), keyString);
 
 				e.consume();
 
@@ -192,17 +230,8 @@ public class KeybindEditor extends JDialog {
 			}
 		}
 	}
-
-	private String getSelectedId() {
-		//noinspection RedundantCast
-		return keybindIdMap.get((String) table.getValueAt(table.getSelectedRow(), 0));
-	}
 	
 	private class KeybindTable extends JTable {
-		
-		private LineBorder highlightBorder;
-		private MatteBorder leftHighlight;
-		private MatteBorder rightHighlight;
 
 		public KeybindTable() {
 			super();
@@ -212,37 +241,34 @@ public class KeybindEditor extends JDialog {
 					.map(e -> 
 						new Vector<>(Arrays.asList(
 								e.getKey(),
-								keybinds.get(e.getValue(), "")
+								globalKeybinds.get(e.getValue(), ""),
+								localKeybinds.get(e.getValue(), "")
 						))
 					)
 					.collect(Collectors.toCollection(Vector::new));
 
-			Vector<String> cols = new Vector<>(Arrays.asList("Action", "Keybind"));
+			Vector<String> cols = new Vector<>(Arrays.asList("Action", "Global", "Local"));
 			
 			this.setModel(new DefaultTableModel(data, cols));
 			this.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 			this.setRowSelectionAllowed(true);
-			this.setColumnSelectionAllowed(false);
+			this.setColumnSelectionAllowed(true);
 			this.setDefaultEditor(Object.class, null);
-
-			highlightBorder = (LineBorder) UIManager.getBorder("Table.focusCellHighlightBorder");
-			leftHighlight = new MatteBorder(1, 1, 1, 0, highlightBorder.getLineColor());
-			rightHighlight = new MatteBorder(1, 0, 1, 1, highlightBorder.getLineColor());
 		}
 		
 		@Override
 		public Component prepareRenderer(TableCellRenderer renderer, int row, int column) {
 			JComponent c = (JComponent) super.prepareRenderer(renderer, row, column);
 			
-			if (isRowSelected(row)) {
-				if (column == 0)
-					c.setBorder(leftHighlight);
-				if (column == 1)
-					c.setBorder(rightHighlight);
-			}
-			
 			((DefaultTableCellRenderer)renderer)
 					.setHorizontalAlignment(SwingConstants.CENTER);
+			
+			String id = keybindIdMap.get(table.getValueAt(row, 0));
+
+			if ((localOnly.contains(id) && column == GLOBAL_COL) ||
+					(globalOnly.contains(id) && column == LOCAL_COL)) {
+						setValueAt(DISABLED_STRING, row, column);
+			}
 
 			return c;
 		}

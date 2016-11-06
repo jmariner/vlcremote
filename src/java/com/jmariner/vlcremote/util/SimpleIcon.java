@@ -19,12 +19,12 @@ public enum SimpleIcon {
 	VOLUME_LOW,
 	VOLUME_NONE,
 	VOLUME_OFF,
-	PLAYLIST;
+	PLAYLIST,
+	FAVORITE,
+	FAVORITE_EMPTY;
 
 	private ImageIcon imageIcon;
 	public static final int ICON_SIZE = 24;
-	private boolean isSize;
-
 
 	SimpleIcon() {
 		String file = String.format("icons/%s.png", name().toLowerCase());
@@ -34,5 +34,12 @@ public enum SimpleIcon {
 
 	public ImageIcon get() {
 		return imageIcon;
+	}
+	
+	public ImageIcon get(double scale) {
+		ImageIcon i = imageIcon;
+		int s = (int) (scale * ICON_SIZE);
+		i.setImage(i.getImage().getScaledInstance(s, s, Image.SCALE_SMOOTH));
+		return i;
 	}
 }

@@ -1,7 +1,13 @@
 package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.SongItem;
+import com.jmariner.vlcremote.util.SimpleIcon;
+import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
+
+import lombok.AccessLevel;
+import lombok.Getter;
+
 import org.jdesktop.swingx.JXList;
 import org.jdesktop.swingx.sort.ListSortController;
 
@@ -10,38 +16,77 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.prefs.BackingStoreException;
+import java.util.prefs.Preferences;
 
 import static com.jmariner.vlcremote.util.Constants.*;
 
 public class PlaylistPanel extends JPanel {
 
 	private RemoteInterface gui;
+	
+	private ImageIcon showFavorites;
+	private ImageIcon hideFavorites;
+	
+	private Preferences favoritesPref;
+	@Getter(AccessLevel.PROTECTED)
+	private List<String> favorites;
 
 	private JXList list;
 	private JTextField searchField;
-	private JButton playSelected;
+	private JButton playSelectedButton, favoriteButton;
+	private JToggleButton showFavoritesButton;
 
 	private ListSortController<ListModel<SongItem>> sorter;
+	private RowFilter<ListModel<SongItem>, Integer> filter;
 
 	protected PlaylistPanel(RemoteInterface gui) {
 		super(new BorderLayout(0, 10));
 		this.gui = gui;
+		
+		double scale = .75;
+		showFavorites = SimpleIcon.FAVORITE_EMPTY.get(scale);
+		hideFavorites = SimpleIcon.FAVORITE.get(scale);
+		
+		favoritesPref = UserSettings.getChild("favorites");
+		favorites = new ArrayList<>();
+		
+		filter = new RowFilter<ListModel<SongItem>, Integer>() {
+			@Override
+			public boolean include(Entry<? extends ListModel<SongItem>, ? extends Integer> entry) {
+				
+				String filterText = searchField.getText().trim();
+				String name = entry.getStringValue(0);
+				boolean show = true;
+				
+				if (showFavoritesButton.isSelected())
+					show &= favorites.contains(name);
+				
+				if (!filterText.isEmpty())
+					show &= name.toUpperCase().contains(filterText.toUpperCase());
+				
+				return show;
+				
+			}
+		};
+		
+		init();
+		
+		gui.addControlComponent(searchField);
+		gui.addControlComponent(playSelectedButton);
 	}
 
-	public void init() {
-		Map<Integer, SongItem> songMap = gui.getRemote().getSongMap();
+	protected void init() {
 
-		DefaultListModel<SongItem> playlist = new DefaultListModel<>();
-		songMap.values().stream().forEachOrdered(playlist::addElement);
-
-		list = new PlaylistList(playlist);
+		list = new PlaylistList();
 		list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-		sorter = new ListSortController<>(playlist);
-		list.setRowSorter(sorter);
+		list.setCellRenderer(new FavoriteRenderer());
 
 		JScrollPane scrollPane = new JScrollPane(
 				list,
@@ -52,52 +97,124 @@ public class PlaylistPanel extends JPanel {
 		JLabel title = new JLabel("Playlist");
 		title.setFont(FONT.deriveFont(18f).deriveFont(UNDERLINE));
 		title.setHorizontalAlignment(SwingConstants.CENTER);
-
-		//*
-		JButton clearSearchButton = new JButton("✖");
-		clearSearchButton.setFont(new Font("Dingbats", 0, FONT.getSize()));
-		clearSearchButton.setToolTipText("Clear the search");
-		clearSearchButton.setForeground(Color.GRAY);
-		clearSearchButton.setBackground(this.getBackground());
-		clearSearchButton.setBorder(BorderFactory.createEmptyBorder());//*/
+		
+		playSelectedButton = new JButton("Play Selected");
+		favoriteButton = new JButton("Favorite Selected");
+		showFavoritesButton = new JToggleButton(showFavorites);
 
 		searchField = new JTextField(20);
 		JPanel playlistSearch = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
 		playlistSearch.add(new JLabel("Search"));
 		playlistSearch.add(searchField);
-		//playlistSearch.add(clearSearchButton);
+		playlistSearch.add(showFavoritesButton);
 
 		JPanel playlistTop = new JPanel(new BorderLayout());
 		playlistTop.add(title, BorderLayout.WEST);
 		playlistTop.add(playlistSearch, BorderLayout.EAST);
 
-		playSelected = new JButton("Play Selected");
+		JPanel bottomLeft = new JPanel(FLOW_CENTER);
+		JPanel bottomRight = new JPanel(FLOW_CENTER);
+		JPanel bottom = new JPanel(new GridLayout(1, 2));
+		
+		bottomLeft.add(favoriteButton);
+		bottomRight.add(playSelectedButton);
+		bottom.add(bottomLeft);
+		bottom.add(bottomRight);
 
 		this.setBorder(new EmptyBorder(10, 10, 10, 10));
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, PLAYLIST_HEIGHT));
 		this.add(playlistTop, BorderLayout.NORTH);
 		this.add(scrollPane, BorderLayout.CENTER);
-		this.add(playSelected, BorderLayout.SOUTH);
+		this.add(bottom, BorderLayout.SOUTH);
 
 		gui.setPlaylistAreaShowing(false);
 
 		initListeners();
 	}
 
+	protected void initPost() {
+		Map<Integer, SongItem> songMap = gui.getRemote().getSongMap();
+		DefaultListModel<SongItem> playlist = new DefaultListModel<>();
+		songMap.values().stream().forEachOrdered(playlist::addElement);
+		
+		list.setModel(playlist);
+		sorter = new ListSortController<>(playlist);
+		sorter.setRowFilter(filter);
+		list.setRowSorter(sorter);
+	}
+	
 	private void initListeners() {
-		playSelected.addActionListener(this::switchSongToSelected);
+		playSelectedButton.addActionListener(this::switchSongToSelected);
+		favoriteButton.addActionListener(this::favoriteSelected);
+		showFavoritesButton.addActionListener(this::toggleFavorites);
+		
 		list.addMouseListener(new PlaylistMouseListener());
+		list.addListSelectionListener(e -> update());
+		
 		searchField.getDocument().addDocumentListener(new PlaylistSearchListener());
+	}
+	
+	private void updateFavorites() {
+		try {
+			favoritesPref.clear();
+		} catch (BackingStoreException e) {
+			e.printStackTrace();
+		}
+		
+		for(int i=0, l=favorites.size(); i<l; i++)
+			favoritesPref.put(""+(i+1), favorites.get(i));
+	}
+	
+	private SongItem getSelected() {
+		return ((SongItem) list.getSelectedValue());
+	}
+	
+	protected void loadSettings() {
+		int i = 1;
+		String f;
+		while ((f = favoritesPref.get(""+i++, null)) != null)
+			favorites.add(f);
 	}
 
 	private void switchSongToSelected(AWTEvent e) {
 		int index = ((SongItem)list.getSelectedValue()).getId();
 		searchField.setText("");
-		gui.getRemote().switchSong(index);
-		gui.updateInterface(gui.getRemote().getStatus());
+		VLCStatus s = gui.getRemote().switchSong(index);
+		gui.updateInterface(s);
+	}
+	
+	private void favoriteSelected(ActionEvent e) {
+		if (e.getActionCommand().equals("remove"))
+			favorites.remove(""+getSelected());
+		else
+			favorites.add(""+getSelected());
+		
+		list.repaint();
+		update();
+		updateFavorites();
+	}
+	
+	private void toggleFavorites(ActionEvent e) {
+		if (showFavoritesButton.isSelected()) {
+			showFavoritesButton.setIcon(hideFavorites);
+		}
+		else {
+			showFavoritesButton.setIcon(showFavorites);
+		}
+	}
+	
+	protected void update() {
+		update((VLCStatus)null);
 	}
 
 	protected void update(VLCStatus status) {
+		
+		boolean fav = favorites.contains(""+getSelected());
+		favoriteButton.setActionCommand(fav ? "remove" : "add");
+		favoriteButton.setText((fav ? "Unf":"F") + "avorite Selected");
+		
+		if (status == null) return;
+		
 		list.setSelectedIndex( // TODO setSelectedValue doesn't work here for some reason
 				gui.getRemote().transformPlaylistID(status.getCurrentID())
 		);
@@ -114,10 +231,31 @@ public class PlaylistPanel extends JPanel {
 			gui.togglePlaylistArea(null);
 		searchField.requestFocusInWindow();
 	}
+	
+	private class FavoriteRenderer extends DefaultListCellRenderer {
+		
+		@Override
+		public Component getListCellRendererComponent(JList<?> list, Object value,
+				int index, boolean isSelected, boolean cellHasFocus) {
+			
+			JLabel c = (JLabel) super.getListCellRendererComponent(
+					list, value, index, isSelected, cellHasFocus);
+			
+			SongItem item = (SongItem) value;
+			
+			if (favorites.contains(""+item))
+				c.setText(item + "  *");
+			else
+				c.setText(""+item);
+			
+			return c;
+		}
+		
+	}
 
 	private class PlaylistList extends JXList {
-		public PlaylistList(ListModel<?> m) {
-			super(m);
+		public PlaylistList() {
+			super();
 		}
 
 		@Override
@@ -134,15 +272,6 @@ public class PlaylistPanel extends JPanel {
 
 		@Override
 		public void changedUpdate(DocumentEvent e) {
-			sorter.setRowFilter(new RowFilter<ListModel<SongItem>, Integer>() {
-				@Override
-				public boolean include(Entry<? extends ListModel<SongItem>, ? extends Integer> entry) {
-					String filterText = searchField.getText().trim();
-					return entry.getStringValue(0).toUpperCase()
-							.contains(filterText.toUpperCase())
-							|| filterText.isEmpty();
-				}
-			});
 		}
 	}
 
