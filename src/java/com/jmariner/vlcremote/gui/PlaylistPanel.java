@@ -31,8 +31,7 @@ public class PlaylistPanel extends JPanel {
 
 	private RemoteInterface gui;
 	
-	private ImageIcon showFavorites;
-	private ImageIcon hideFavorites;
+	private ImageIcon showFavorites, hideFavorites;
 	
 	private Preferences favoritesPref;
 	@Getter(AccessLevel.PROTECTED)
@@ -115,11 +114,14 @@ public class PlaylistPanel extends JPanel {
 
 		JPanel bottomLeft = new JPanel(FLOW_CENTER);
 		JPanel bottomRight = new JPanel(FLOW_CENTER);
+		JPanel bottomMiddle = new JPanel(FLOW_CENTER);
 		JPanel bottom = new JPanel(new GridLayout(1, 3));
 		
 		bottomLeft.add(favoriteButton);
 		bottomRight.add(playSelectedButton);
+		bottomMiddle.add(jumpToSelectedButton);
 		bottom.add(bottomLeft);
+		bottom.add(bottomMiddle);
 		bottom.add(bottomRight);
 
 		this.setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -147,10 +149,9 @@ public class PlaylistPanel extends JPanel {
 		playSelectedButton.addActionListener(this::switchSongToSelected);
 		favoriteButton.addActionListener(this::favoriteSelected);
 		showFavoritesButton.addActionListener(this::toggleFavorites);
-		jumpToSelectedButton.addActionListener(this::jumpToSelected);
+		jumpToSelectedButton.addActionListener(e -> this.viewSelected(true));
 		
 		list.addMouseListener(new PlaylistMouseListener());
-		list.addListSelectionListener(e -> update());
 		
 		searchField.getDocument().addDocumentListener(new PlaylistSearchListener());
 	}
@@ -178,9 +179,12 @@ public class PlaylistPanel extends JPanel {
 	}
 
 	private void switchSongToSelected(AWTEvent e) {
+		
 		int index = ((SongItem)list.getSelectedValue()).getId();
-		searchField.setText("");
 		VLCStatus s = gui.getRemote().switchSong(index);
+		
+		viewSelected(true);
+				
 		gui.updateInterface(s);
 	}
 	
@@ -191,11 +195,12 @@ public class PlaylistPanel extends JPanel {
 			favorites.add(""+getSelected());
 		
 		list.repaint();
-		update();
+		sorter.setRowFilter(filter);
+		updateFavoriteButton();
 		updateFavorites();
 	}
 	
-	private void toggleFavorites(ActionEvent e) {
+	private void toggleFavorites(AWTEvent e) {
 		if (showFavoritesButton.isSelected()) {
 			showFavoritesButton.setIcon(hideFavorites);
 		}
@@ -205,7 +210,10 @@ public class PlaylistPanel extends JPanel {
 		sorter.setRowFilter(filter);
 	}
 	
-	private void jumpToSelected(AWTEvent e) {
+	private void viewSelected(boolean clear) {
+		
+		if (clear) clearFilters();
+				
 		int selected = list.getSelectedIndex();
 		int size = list.getModel().getSize();
 		int min = selected < 5 ? 0 : selected-5;
@@ -214,28 +222,30 @@ public class PlaylistPanel extends JPanel {
 		list.scrollRectToVisible(r);
 	}
 	
-	protected void update() {
-		update((VLCStatus)null);
-	}
-
-	protected void update(VLCStatus status) {
-		
+	protected void updateFavoriteButton() {
 		boolean fav = favorites.contains(""+getSelected());
 		favoriteButton.setActionCommand(fav ? "remove" : "add");
 		favoriteButton.setText((fav ? "Unf":"F") + "avorite Selected");
-		
-		if (status == null) return;
-		
-		list.setSelectedIndex( // TODO setSelectedValue doesn't work here for some reason
-				gui.getRemote().transformPlaylistID(status.getCurrentID())
-		);
-		jumpToSelected(null);
 	}
 
-	public void startSearch() {
+	protected void update(VLCStatus status) {
+		int sel = gui.getRemote().transformPlaylistID(status.getCurrentID());
+		if (sel != list.getSelectedIndex())
+			list.setSelectedIndex(sel); // TODO setSelectedValue doesn't work here for some reason
+		
+		viewSelected(false);
+	}
+
+	protected void startSearch() {
 		if (!gui.isPlaylistAreaShowing())
 			gui.togglePlaylistArea(null);
 		searchField.requestFocusInWindow();
+	}
+	
+	private void clearFilters() {
+		searchField.setText("");
+		if (showFavoritesButton.isSelected())
+			showFavoritesButton.doClick();
 	}
 	
 	private class FavoriteRenderer extends DefaultListCellRenderer {
