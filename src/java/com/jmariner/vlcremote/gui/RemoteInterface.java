@@ -57,7 +57,7 @@ public class RemoteInterface extends JFrame {
 	
 	private JSeparator mainSeparator;
 	
-	private PlaylistPanel playlistPanel;
+	private PlaylistPanel2 playlistPanel;
 	
 	private KeybindEditor keybindEditor;
 	
@@ -97,7 +97,7 @@ public class RemoteInterface extends JFrame {
 		statusPanel = new StatusPanel();
 		progressPanel = new ProgressPanel(this);
 		controlsPanel = new ControlsPanel(this);
-		playlistPanel = new PlaylistPanel(this);
+		playlistPanel = new PlaylistPanel2(this);
 
 		mainPanel = new JPanel(new BorderLayout(0, 20));
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
@@ -129,13 +129,6 @@ public class RemoteInterface extends JFrame {
 		this.setResizable(false);
 		this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		Runtime.getRuntime().addShutdownHook(new CleanupOnShutdown());
-		
-		initActions();
-		
-		globalHotkeyHandler = new GlobalHotkeyHandler();
-		localHotkeyHandler = new LocalHotkeyHandler(this);
-		
-		keybindEditor = new KeybindEditor(this);
 
 		loadSettings();
 		if (UserSettings.getBoolean("autoconnect", false)) {
@@ -149,7 +142,6 @@ public class RemoteInterface extends JFrame {
 	private void loadSettings() {
 		menuBar.loadSettings();
 		loginPanel.loadSettings();
-		keybindEditor.loadSettings();
 		playlistPanel.loadSettings();
 	}
 
@@ -166,6 +158,7 @@ public class RemoteInterface extends JFrame {
 		});
 		
 		actions.put("searchPlaylist", playlistPanel::startSearch);
+		actions.put("restartStream", remote::restartStream);
 	}
 	
 	protected Runnable getAction(String name) {
@@ -181,13 +174,7 @@ public class RemoteInterface extends JFrame {
 		if (connected) {
 			loginPanel.saveConnectionInfo();
 
-			mainPanel.remove(loginPanel);
-
-			mainPanel.add(statusPanel, BorderLayout.NORTH);
-
-			controlComponents.forEach(b -> b.setEnabled(true));
-
-			playlistPanel.initPost();
+			initPost();
 
 			remote.setSourceVolume(1);
 			remote.sendCommand(Command.PLAY);
@@ -195,6 +182,24 @@ public class RemoteInterface extends JFrame {
 			startUpdateLoop();
 			remote.playStream();
 		}
+	}
+	
+	private void initPost() {
+		mainPanel.remove(loginPanel);
+
+		mainPanel.add(statusPanel, BorderLayout.NORTH);
+
+		controlComponents.forEach(b -> b.setEnabled(true));
+
+		playlistPanel.initPost();
+		
+		initActions();
+		globalHotkeyHandler = new GlobalHotkeyHandler();
+		localHotkeyHandler = new LocalHotkeyHandler(this);
+		keybindEditor = new KeybindEditor(this);
+		keybindEditor.loadSettings();
+		
+		menuBar.initPost();
 	}
 
 	private void initRemote() {

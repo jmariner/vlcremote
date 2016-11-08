@@ -68,10 +68,15 @@ public class MainMenuBar extends JMenuBar {
 		options.add(setEqPreset);
 		
 		setEqPreset.setEnabled(false);
+		restartStream.setEnabled(false);
 
 		this.add(tools);
 		this.add(options);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, MENUBAR_HEIGHT));
+	}
+	
+	protected void initPost() {
+		restartStream.setEnabled(true);
 	}
 
 	private void initListeners() {
@@ -81,7 +86,7 @@ public class MainMenuBar extends JMenuBar {
 			UserSettings.putBoolean("instantPause", instantPauseEnabled);
 		});
 
-		restartStream.addActionListener(e -> gui.getRemote().restartStream());
+		restartStream.addActionListener(e -> gui.getAction("restartStream").run());
 		gotoPreferences.addActionListener(e -> UserSettings.viewPreferencesFile());
 		updateDelayInput.addActionListener(this::setUpdateDelay);
 		setEqPreset.addActionListener(this::setEqPreset);

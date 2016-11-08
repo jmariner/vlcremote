@@ -9,6 +9,7 @@ import java.awt.*;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.stream.Stream;
 
 import static com.jmariner.vlcremote.util.Constants.*;
@@ -56,6 +57,16 @@ public class GuiUtils {
 
 	public static Dimension squareDim(int size) {
 		return new Dimension(size, size);
+	}
+	
+	public static JPanel horizontalGridOf(JComponent... comps) {
+		JPanel panel = new JPanel(new GridLayout(1, comps.length));
+		Arrays.asList(comps).stream().forEachOrdered(c -> {
+			JPanel p = new JPanel(FLOW_CENTER);
+			p.add(c);
+			panel.add(p);
+		});
+		return panel;
 	}
 
 }

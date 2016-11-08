@@ -5,6 +5,8 @@ import java.awt.font.TextAttribute;
 import java.text.AttributedCharacterIterator;
 import java.util.HashMap;
 
+import javax.swing.border.EmptyBorder;
+
 public class Constants {
 	public static final Font FONT = Roboto.REGULAR.deriveFont(14f);
 
@@ -24,6 +26,9 @@ public class Constants {
 	public static final int MAX_HEIGHT = MAIN_HEIGHT + PLAYLIST_HEIGHT + MENUBAR_HEIGHT;
 	
 	public static final FlowLayout FLOW_CENTER = new FlowLayout(FlowLayout.CENTER, 0, 0);
+	public static final BorderLayout BORDER_LAYOUT = new BorderLayout(0, 0);
+	public static final EmptyBorder MAIN_PADDING_BORDER = 
+			new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING);
 
 	public static final HashMap<AttributedCharacterIterator.Attribute, Object> UNDERLINE = new HashMap<>();
 

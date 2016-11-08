@@ -50,7 +50,8 @@ public class KeybindEditor extends JDialog {
 			"Toggle Mute:toggleMute",
 			"Increase Volume:incVolume",
 			"Decrease Volume:decVolume",
-			"Search Playlist:searchPlaylist"
+			"Search Playlist:searchPlaylist",
+			"Restart Stream:restartStream"
 	);
 	
 	private static final List<String> localOnly = 

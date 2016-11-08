@@ -84,8 +84,8 @@ public class MyVLCRemote {
 		});
 	}
 	
-	public SongItem getCurrentSong() {
-		return songMap.get(getStatus().getCurrentID());
+	public SongItem getCurrentSong(VLCStatus status) {
+		return songMap.get(status.getCurrentID());
 	}
 
 	private void playStream(int msDelay) {

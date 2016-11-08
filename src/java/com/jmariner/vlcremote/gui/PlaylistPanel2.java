@@ -1,22 +1,23 @@
 package com.jmariner.vlcremote.gui;
 
-import static com.jmariner.vlcremote.util.Constants.FLOW_CENTER;
-import static com.jmariner.vlcremote.util.Constants.FONT;
-import static com.jmariner.vlcremote.util.Constants.MAIN_WIDTH;
-import static com.jmariner.vlcremote.util.Constants.PLAYLIST_HEIGHT;
-import static com.jmariner.vlcremote.util.Constants.UNDERLINE;
+import static com.jmariner.vlcremote.util.Constants.*;
 
+import java.awt.AWTEvent;
 import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.GridLayout;
+import java.awt.Point;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Vector;
+import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
@@ -28,23 +29,26 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.JToggleButton;
-import javax.swing.ListModel;
+import javax.swing.JViewport;
 import javax.swing.ListSelectionModel;
 import javax.swing.RowFilter;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
-import javax.swing.RowFilter.Entry;
-import javax.swing.border.EmptyBorder;
+import javax.swing.UIManager;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-
-import org.jdesktop.swingx.JXList;
-import org.jdesktop.swingx.sort.ListSortController;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableModel;
+import javax.swing.table.TableRowSorter;
 
 import com.jmariner.vlcremote.SongItem;
+import com.jmariner.vlcremote.util.Constants;
+import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.UserSettings;
+import com.jmariner.vlcremote.util.VLCStatus;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -59,13 +63,10 @@ public class PlaylistPanel2 extends JPanel {
 	@Getter(AccessLevel.PROTECTED)
 	private List<String> favorites;
 
-	private JTable table;
+	private PlaylistTable table;
 	private JTextField searchField;
-	private JButton playSelectedButton, favoriteButton, jumpToSelectedButton;
+	private JButton playSelectedButton, favoriteButton, jumpToCurrentButton;
 	private JToggleButton showFavoritesButton;
-
-	private ListSortController<ListModel<SongItem>> sorter;
-	private RowFilter<ListModel<SongItem>, Integer> filter;
 	
 	public PlaylistPanel2(RemoteInterface gui) {
 		super(new BorderLayout(0, 10));
@@ -78,26 +79,8 @@ public class PlaylistPanel2 extends JPanel {
 		favoritesPref = UserSettings.getChild("favorites");
 		favorites = new ArrayList<>();
 		
-		filter = new RowFilter<ListModel<SongItem>, Integer>() {
-			@Override
-			public boolean include(Entry<? extends ListModel<SongItem>, ? extends Integer> entry) {
-				
-				String filterText = searchField.getText().trim();
-				String name = entry.getStringValue(0);
-				boolean show = true;
-				
-				if (showFavoritesButton.isSelected())
-					show &= favorites.contains(name);
-				
-				if (!filterText.isEmpty())
-					show &= name.toUpperCase().contains(filterText.toUpperCase());
-				
-				return show;
-				
-			}
-		};
-		
 		init();
+		initListeners();
 		
 		gui.addControlComponent(searchField);
 		gui.addControlComponent(playSelectedButton);
@@ -119,7 +102,7 @@ public class PlaylistPanel2 extends JPanel {
 		playSelectedButton = new JButton("Play Selected");
 		favoriteButton = new JButton("Favorite Selected");
 		showFavoritesButton = new JToggleButton(showFavorites);
-		jumpToSelectedButton = new JButton("View Selected");
+		jumpToCurrentButton = new JButton("View Current");
 
 		searchField = new JTextField(20);
 		JPanel playlistSearch = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
@@ -131,19 +114,9 @@ public class PlaylistPanel2 extends JPanel {
 		playlistTop.add(title, BorderLayout.WEST);
 		playlistTop.add(playlistSearch, BorderLayout.EAST);
 
-		JPanel bottomLeft = new JPanel(FLOW_CENTER);
-		JPanel bottomRight = new JPanel(FLOW_CENTER);
-		JPanel bottomMiddle = new JPanel(FLOW_CENTER);
-		JPanel bottom = new JPanel(new GridLayout(1, 3));
-		
-		bottomLeft.add(favoriteButton);
-		bottomRight.add(playSelectedButton);
-		bottomMiddle.add(jumpToSelectedButton);
-		bottom.add(bottomLeft);
-		bottom.add(bottomMiddle);
-		bottom.add(bottomRight);
+		JPanel bottom = GuiUtils.horizontalGridOf(playSelectedButton, favoriteButton, jumpToCurrentButton);
 
-		this.setBorder(new EmptyBorder(10, 10, 10, 10));
+		this.setBorder(MAIN_PADDING_BORDER);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, PLAYLIST_HEIGHT));
 		this.add(playlistTop, BorderLayout.NORTH);
 		this.add(scrollPane, BorderLayout.CENTER);
@@ -152,13 +125,143 @@ public class PlaylistPanel2 extends JPanel {
 		gui.setPlaylistAreaShowing(false);
 	}
 	
+	private void initListeners() {
+		playSelectedButton.addActionListener(this::switchSongToSelected);
+		favoriteButton.addActionListener(this::favoriteSelected);
+		showFavoritesButton.addActionListener(this::toggleShowFavorites);
+		jumpToCurrentButton.addActionListener(this::scrollToCurrent);
+		
+		table.addMouseListener(new PlaylistMouseListener());
+		
+		searchField.getDocument().addDocumentListener(new PlaylistSearchListener());
+	}
+	
+	protected void initPost() {
+		table.initPost();
+	}
+	
+	private void clearFilters() {
+		searchField.setText("");
+		if (showFavoritesButton.isSelected())
+			showFavoritesButton.doClick();
+		table.setFilterEnabled(false);
+	}
+	
+	protected void startSearch() {
+		if (!gui.isPlaylistAreaShowing())
+			gui.togglePlaylistArea(null);
+		searchField.requestFocusInWindow();
+	}
+	
+	protected void loadSettings() {
+		int i = 1;
+		String f;
+		while ((f = favoritesPref.get(""+i++, null)) != null)
+			favorites.add(f);
+	}
+	
+	private void toggleShowFavorites(AWTEvent e) {
+		if (showFavoritesButton.isSelected()) {
+			showFavoritesButton.setIcon(hideFavorites);
+		}
+		else {
+			showFavoritesButton.setIcon(showFavorites);
+		}
+		table.setFilterEnabled(true);
+	}
+
+	
+	private void favoriteSelected(ActionEvent e) {
+		String cur = table.getSelected().toString();
+		if (e.getActionCommand().equals("remove"))
+			favorites.remove(cur);
+		else
+			favorites.add(cur);
+		
+		table.setFilterEnabled(true);
+		updateFavoriteButton();
+		updateFavorites();
+	}
+	
+	private void updateFavorites() {
+		try {
+			favoritesPref.clear();
+		} catch (BackingStoreException e) {
+			e.printStackTrace();
+		}
+		
+		for(int i=0, l=favorites.size(); i<l; i++)
+			favoritesPref.put(""+(i+1), favorites.get(i));
+	}
+	
+	protected void updateFavoriteButton() {
+		boolean fav = favorites.contains(table.getSelected().toString());
+		favoriteButton.setActionCommand(fav ? "remove" : "add");
+		favoriteButton.setText((fav ? "Unf":"F") + "avorite Selected");
+	}
+	
+	protected void update(VLCStatus status) {
+		SongItem cur = gui.getRemote().getCurrentSong(status);
+		if (table.getSelected() == null || !table.getSelected().equals(cur)) {
+			table.setSelected(cur);
+			table.scrollToSelected();
+		}
+	}
+	
+	private void switchSongToSelected(AWTEvent e) {
+		
+		VLCStatus s = gui.getRemote().switchSong(table.getSelected().getId());
+		
+		clearFilters();
+		table.scrollToSelected();
+		
+		gui.updateInterface(s);
+	}
+	
+	private void scrollToCurrent(AWTEvent e) {
+		// TODO this
+	}
+	
 	private class PlaylistTable extends JTable {
+		
+		private TableRowSorter<TableModel> sorter;
+		private RowFilter<TableModel, Integer> filter;
+		
+		private boolean filterEnabled;
 		
 		public PlaylistTable() {
 			super();
-						
-			this.setTableHeader(null);
+			
+			sorter = new TableRowSorter<>();
+			filter = new RowFilter<TableModel, Integer>() {
+				@Override
+				public boolean include(Entry<? extends TableModel, ? extends Integer> entry) {
+					
+					if (!filterEnabled)
+						return true;
+					
+					String filterText = searchField.getText().trim();
+					String name = entry.getStringValue(0);
+					boolean show = true;
+					
+					if (showFavoritesButton.isSelected())
+						show &= favorites.contains(name);
+					
+					if (!filterText.isEmpty())
+						show &= name.toUpperCase().contains(filterText.toUpperCase());
+					
+					return show;
+					
+				}
+			};
+			
+			filterEnabled = false;
+			
 			this.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			this.setRowSelectionAllowed(true);
+			this.setColumnSelectionAllowed(true);
+			this.setDefaultEditor(SongItem.class, null);
+			this.setDefaultRenderer(SongItem.class, new PlaylistCellRenderer());
 		}
 		
 		protected void initPost() {
@@ -169,7 +272,148 @@ public class PlaylistPanel2 extends JPanel {
 			
 			Vector<String> headers = new Vector<>(Arrays.asList(""));
 			
-			this.setModel(new DefaultTableModel(data, headers));
+			DefaultTableModel model = new DefaultTableModel(data, headers) {
+				@Override
+				public Class<?> getColumnClass(int c) {
+					return SongItem.class;
+				}
+			};
+			this.setModel(model);
+			sorter.setModel(model);
+			this.setTableHeader(null);
+			this.setRowSorter(sorter);
+		}
+		
+		protected void setFilterEnabled(boolean enabled) {
+			filterEnabled = enabled;
+			sorter.setRowFilter(filter);
+		}
+		
+		protected void setSelected(SongItem item) {
+			for (int i=0, l=getRowCount(); i<l; i++) {
+				if (getValueAt(i, 0).equals(item)) {
+					table.setRowSelectionInterval(i, i);
+					return;
+				}
+			}
+		}
+		
+		protected SongItem getSelected() {
+			int r = getSelectedRow();
+			return r == -1 ? null : (SongItem) getValueAt(r, 0);
+		}
+		
+		protected boolean isSelectionVisible() {
+			Container c = getParent();
+			int r = getSelectedRow();
+			
+			return  (r > -1) &&
+					(c instanceof JViewport) &&
+					((JViewport) c)
+						.contains(getCellRect(r, 0, true).getLocation());
+			
+		}
+		
+		protected void scrollToSelected() {
+			int selected = getSelectedRow();
+
+			if (selected == -1 || isSelectionVisible()) return;
+			
+			// calculate possible spacing before and after selection
+			int last = getRowCount()-1;
+			int before = selected < 5 ? selected : 5;
+			int after = selected > last-5 ? last-selected : 5;
+			
+			int h = getRowHeight();
+			before *= h;
+			after *= h;
+			
+			// create spacing before and after selection so it is somewhat center
+			Rectangle rect = getCellRect(selected, 0, true);
+			rect.setLocation(rect.x, rect.y - before);
+			rect.setSize(rect.width, before + rect.height + after);
+			
+			// account for the viewport position
+			JViewport view = (JViewport) getParent();
+			Point pt = view.getViewPosition();
+			rect.setLocation(rect.x - pt.x, rect.y - pt.y);
+			
+			view.scrollRectToVisible(rect);
+		}
+		
+		private class PlaylistCellRenderer extends JPanel implements TableCellRenderer {
+			
+			private JLabel label, fav;
+			
+			// this block is only called on init of the renderer, must use different method to create the panel
+			public PlaylistCellRenderer() {
+				super(Constants.BORDER_LAYOUT);
+				
+				label = new JLabel();
+				
+				double downScale = getRowHeight() / ((double) SimpleIcon.ICON_SIZE);
+				fav = new JLabel(SimpleIcon.FAVORITE.get(downScale));
+				
+				fav.setVisible(false);
+				
+				this.add(label, BorderLayout.WEST);
+				this.add(fav, BorderLayout.EAST);
+				
+				this.setOpaque(true);
+				
+			}
+			
+			@Override
+			public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int col) {
+								
+				String s = ((SongItem) v).toString();
+				
+				label.setText(s);
+				fav.setVisible(favorites.contains(s));
+				
+				if (sel) {
+					setBackground(t.getSelectionBackground());
+					setForeground(t.getSelectionForeground());
+				}
+				else {
+					setBackground(t.getBackground());
+					setForeground(t.getForeground());
+				}
+				
+				if (foc) {
+					if (sel) setBorder(UIManager.getBorder("Table.focusSelectedCellHighlightBorder"));
+					else setBorder(UIManager.getBorder("Table.focusCellHighlightBorder"));
+				}
+				else
+					setBorder(UIManager.getBorder("Table.cellNoFocusBorder"));
+				
+				return this;
+			}
+			
+			// DefaultTableCellRenderer states these should be overridden to no-ops
+			public void invalidate() {}
+			public void validate() {}
+			public void revalidate() {}
+			public void repaint(long tm, int x, int y, int w, int h) {}
+			public void repaint(Rectangle r) {}
+			public void repaint() {}
+			
+			/**
+			 * Direct copy of {@link DefaultTableCellRenderer#firePropertyChange(String, boolean, boolean)}
+			 */
+		    protected void firePropertyChange(String propertyName, Object oldValue, Object newValue) {
+		        // Strings get interned...
+		        if (propertyName=="text"
+		                || propertyName == "labelFor"
+		                || propertyName == "displayedMnemonic"
+		                || ((propertyName == "font" || propertyName == "foreground")
+		                    && oldValue != newValue
+		                    && getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey) != null)) {
+
+		            super.firePropertyChange(propertyName, oldValue, newValue);
+		        }
+		    }
+			
 		}
 	}
 	
@@ -179,9 +423,7 @@ public class PlaylistPanel2 extends JPanel {
 		public void removeUpdate(DocumentEvent e) { changedUpdate(e); }
 
 		@Override
-		public void changedUpdate(DocumentEvent e) {
-			sorter.setRowFilter(filter);
-		}
+		public void changedUpdate(DocumentEvent e) { table.setFilterEnabled(true); }
 	}
 
 	private class PlaylistMouseListener extends MouseAdapter {

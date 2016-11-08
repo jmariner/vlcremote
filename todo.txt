@@ -6,6 +6,8 @@ button to toggle table view / list view for playlist (maybe wait for a way to ge
 
 switch to using VLC's media library function, where multiple folders can be added and swapped between. need to rewrite playlist parser to account for this, as well as keep track of each different playlist/folder using a list or map
 
+reconnect after timeout and continue update loop
+
 ***
 create custom/status.json just like custom/playlist.json
 add vlc.var.get(vlc.object.aout(), "equalizer-preset") to the status table in httprequests2.lua
