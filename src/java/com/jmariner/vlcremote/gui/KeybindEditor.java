@@ -180,10 +180,15 @@ public class KeybindEditor extends JDialog {
 				new Object[]{"Unset", "Cancel"}, null
 		);
 
-		if (choice == 0) {
-			table.setValueAt("", table.getSelectedRow(), table.getSelectedColumn());
+		if (choice == 0) unsetSelected();
+	}
+	
+	private void unsetSelected() {
+		table.setValueAt("", table.getSelectedRow(), table.getSelectedColumn());
+		if (table.isColumnSelected(GLOBAL_COL))
 			globalKeybinds.remove(getSelectedId());
-		}
+		if (table.isColumnSelected(LOCAL_COL))
+			localKeybinds.remove(getSelectedId());
 	}
 
 	private String getSelectedId() {

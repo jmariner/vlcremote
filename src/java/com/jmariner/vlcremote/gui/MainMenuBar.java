@@ -69,6 +69,7 @@ public class MainMenuBar extends JMenuBar {
 		
 		setEqPreset.setEnabled(false);
 		restartStream.setEnabled(false);
+		editKeybinds.setEnabled(false);
 
 		this.add(tools);
 		this.add(options);
@@ -77,6 +78,7 @@ public class MainMenuBar extends JMenuBar {
 	
 	protected void initPost() {
 		restartStream.setEnabled(true);
+		editKeybinds.setEnabled(true);
 	}
 
 	private void initListeners() {

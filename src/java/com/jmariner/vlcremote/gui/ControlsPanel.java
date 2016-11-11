@@ -138,10 +138,6 @@ public class ControlsPanel extends JPanel {
 		togglePlaylistButton.addActionListener(gui::togglePlaylistArea);
 	}
 	
-	protected void incrementVolume(double step) {
-	//	volumeSlider.set
-	}
-	
 	protected void updateVolume() {
 		
 		volumeSlider.setValue(gui.getRemote().getPlaybackVolume());
@@ -247,7 +243,7 @@ public class ControlsPanel extends JPanel {
 	private void toggleMute(EventObject e) {
 		gui.setMuted(!gui.isMuted());
 		if (gui.isMuted())
-			gui.getRemote().setPlaybackVolume(0);
+			gui.getRemote().setPlaybackVolume(0); // TODO setting mute this way now sets slider to zero; put mute function in remote
 		else
 			volumeChanged(null); // updates volume from slider
 

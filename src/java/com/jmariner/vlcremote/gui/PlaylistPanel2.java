@@ -4,6 +4,7 @@ import static com.jmariner.vlcremote.util.Constants.*;
 
 import java.awt.AWTEvent;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
@@ -21,6 +22,7 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import java.util.stream.Collectors;
 
+import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
@@ -35,8 +37,12 @@ import javax.swing.RowFilter;
 import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingConstants;
 import javax.swing.UIManager;
+import javax.swing.border.Border;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.event.ListSelectionEvent;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
@@ -72,10 +78,6 @@ public class PlaylistPanel2 extends JPanel {
 		super(new BorderLayout(0, 10));
 		this.gui = gui;
 		
-		double scale = .75;
-		showFavorites = SimpleIcon.FAVORITE_EMPTY.get(scale);
-		hideFavorites = SimpleIcon.FAVORITE.get(scale);
-		
 		favoritesPref = UserSettings.getChild("favorites");
 		favorites = new ArrayList<>();
 		
@@ -88,6 +90,10 @@ public class PlaylistPanel2 extends JPanel {
 	
 	private void init() {
 		table = new PlaylistTable();
+		
+		double scale = .75;
+		hideFavorites = SimpleIcon.FAVORITE.get(scale);
+		showFavorites = SimpleIcon.FAVORITE_EMPTY.get(scale);
 
 		JScrollPane scrollPane = new JScrollPane(
 				table,
@@ -131,9 +137,10 @@ public class PlaylistPanel2 extends JPanel {
 		showFavoritesButton.addActionListener(this::toggleShowFavorites);
 		jumpToCurrentButton.addActionListener(this::scrollToCurrent);
 		
-		table.addMouseListener(new PlaylistMouseListener());
-		
-		searchField.getDocument().addDocumentListener(new PlaylistSearchListener());
+		PlaylistListener listener = new PlaylistListener();
+		table.addMouseListener(listener);
+		table.getSelectionModel().addListSelectionListener(this::updateFavoriteButton);
+		searchField.getDocument().addDocumentListener(listener);
 	}
 	
 	protected void initPost() {
@@ -179,7 +186,7 @@ public class PlaylistPanel2 extends JPanel {
 			favorites.add(cur);
 		
 		table.setFilterEnabled(true);
-		updateFavoriteButton();
+		updateFavoriteButton(null);
 		updateFavorites();
 	}
 	
@@ -194,10 +201,14 @@ public class PlaylistPanel2 extends JPanel {
 			favoritesPref.put(""+(i+1), favorites.get(i));
 	}
 	
-	protected void updateFavoriteButton() {
-		boolean fav = favorites.contains(table.getSelected().toString());
-		favoriteButton.setActionCommand(fav ? "remove" : "add");
-		favoriteButton.setText((fav ? "Unf":"F") + "avorite Selected");
+	protected void updateFavoriteButton(ListSelectionEvent e) {
+		SongItem song = table.getSelected();
+		favoriteButton.setEnabled(song != null);
+		if (song != null) {
+			boolean fav = favorites.contains(song.toString());
+			favoriteButton.setActionCommand(fav ? "remove" : "add");
+			favoriteButton.setText((fav ? "Unf":"F") + "avorite Selected");	
+		}
 	}
 	
 	protected void update(VLCStatus status) {
@@ -228,7 +239,7 @@ public class PlaylistPanel2 extends JPanel {
 		private RowFilter<TableModel, Integer> filter;
 		
 		private boolean filterEnabled;
-		
+				
 		public PlaylistTable() {
 			super();
 			
@@ -282,6 +293,9 @@ public class PlaylistPanel2 extends JPanel {
 			sorter.setModel(model);
 			this.setTableHeader(null);
 			this.setRowSorter(sorter);
+			
+			Rectangle r = ((JViewport) this.getParent()).getViewRect();
+			repaint(r);
 		}
 		
 		protected void setFilterEnabled(boolean enabled) {
@@ -345,62 +359,78 @@ public class PlaylistPanel2 extends JPanel {
 			
 			private JLabel label, fav;
 			
-			// this block is only called on init of the renderer, must use different method to create the panel
+			private final Border DEFAULT_BORDER;
+			private final Border SELECTED_BORDER 	= UIManager.getBorder("Table.focusCellHighlightBorder");
+			private final Color SELECTED_BACKGROUND = UIManager.getColor("Table.selectionBackground");
+			private final Color SELECTED_FOREGROUND = UIManager.getColor("Table.selectionForeground");
+			private final Color DEFAULT_BACKGROUND 	= UIManager.getColor("Table.background");
+			private final Color DEFAULT_FOREGROUND 	= UIManager.getColor("Table.foreground");
+			
 			public PlaylistCellRenderer() {
 				super(Constants.BORDER_LAYOUT);
 				
 				label = new JLabel();
+				label.setBorder(new EmptyBorder(0, MAIN_PADDING, 0, 0));
 				
 				double downScale = getRowHeight() / ((double) SimpleIcon.ICON_SIZE);
 				fav = new JLabel(SimpleIcon.FAVORITE.get(downScale));
+				label.setBorder(new EmptyBorder(0, 0, 0, MAIN_PADDING));
 				
 				fav.setVisible(false);
 				
 				this.add(label, BorderLayout.WEST);
 				this.add(fav, BorderLayout.EAST);
 				
-				this.setOpaque(true);
+				// TODO setting this to true makes this and the table transparent so the frame background shows
+				//		no idea why, it doesn't make any sense. just setting to false to table background can show
+				this.setOpaque(false);
 				
+				int i = ((LineBorder)SELECTED_BORDER).getThickness();
+				DEFAULT_BORDER = BorderFactory.createEmptyBorder(i, i, i, i);
 			}
 			
 			@Override
 			public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int col) {
-								
+				
 				String s = ((SongItem) v).toString();
 				
 				label.setText(s);
 				fav.setVisible(favorites.contains(s));
 				
 				if (sel) {
-					setBackground(t.getSelectionBackground());
-					setForeground(t.getSelectionForeground());
+					// TODO background colors don't do anything here, see previous todo
+					this.setBackground(SELECTED_BACKGROUND);
+					this.setForeground(SELECTED_FOREGROUND);
+					this.setBorder(SELECTED_BORDER);
 				}
 				else {
-					setBackground(t.getBackground());
-					setForeground(t.getForeground());
+					this.setBackground(t.getBackground());
+					this.setForeground(t.getForeground());
+					this.setBorder(DEFAULT_BORDER);
 				}
-				
-				if (foc) {
-					if (sel) setBorder(UIManager.getBorder("Table.focusSelectedCellHighlightBorder"));
-					else setBorder(UIManager.getBorder("Table.focusCellHighlightBorder"));
-				}
-				else
-					setBorder(UIManager.getBorder("Table.cellNoFocusBorder"));
 				
 				return this;
 			}
 			
+			@Override
+			public void setForeground(Color c) {
+				if (label != null && fav != null) {
+					label.setForeground(c);
+					fav.setForeground(c);
+				}
+			}
+			
 			// DefaultTableCellRenderer states these should be overridden to no-ops
-			public void invalidate() {}
-			public void validate() {}
-			public void revalidate() {}
-			public void repaint(long tm, int x, int y, int w, int h) {}
-			public void repaint(Rectangle r) {}
-			public void repaint() {}
+			@Override public void revalidate() {}
+			@Override public void repaint(long t, int x, int y, int w, int h) {}
+			@Override public void repaint(Rectangle r) {}
+			@Override public void repaint() {}
+			@Override public void firePropertyChange(String p, boolean o, boolean n) {}
 			
 			/**
-			 * Direct copy of {@link DefaultTableCellRenderer#firePropertyChange(String, boolean, boolean)}
+			 * Direct copy of {@link DefaultTableCellRenderer#firePropertyChange(String, Object, Object)}
 			 */
+			@Override
 		    protected void firePropertyChange(String propertyName, Object oldValue, Object newValue) {
 		        // Strings get interned...
 		        if (propertyName=="text"
@@ -414,25 +444,26 @@ public class PlaylistPanel2 extends JPanel {
 		        }
 		    }
 			
+			// --END PlaylistCellRenderer--
 		}
+		
+		// --END PlaylistTable--
 	}
 	
-	private class PlaylistSearchListener implements DocumentListener {
-
-		public void insertUpdate(DocumentEvent e) { changedUpdate(e); }
-		public void removeUpdate(DocumentEvent e) { changedUpdate(e); }
-
-		@Override
-		public void changedUpdate(DocumentEvent e) { table.setFilterEnabled(true); }
-	}
-
-	private class PlaylistMouseListener extends MouseAdapter {
+	private class PlaylistListener extends MouseAdapter implements DocumentListener {
+		
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			if (e.getClickCount() == 2) {
 				switchSongToSelected(null);
 			}
 		}
+
+		@Override public void insertUpdate(DocumentEvent e) { changedUpdate(e); }
+		@Override public void removeUpdate(DocumentEvent e) { changedUpdate(e); }
+
+		@Override
+		public void changedUpdate(DocumentEvent e) { table.setFilterEnabled(true); }
 	}
 
 }

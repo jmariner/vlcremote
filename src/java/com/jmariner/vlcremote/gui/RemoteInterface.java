@@ -355,9 +355,10 @@ public class RemoteInterface extends JFrame {
 		public void run() {
 			if (connected) {
 				remote.stopStream();
-				remote.sendCommand(Command.PAUSE);
+		// TODO	remote.sendCommand(Command.PAUSE);
 			}
-			globalHotkeyHandler.cleanup();
+			if (globalHotkeyHandler != null)
+				globalHotkeyHandler.cleanup();
 		}
 	}
 
