@@ -9,10 +9,13 @@ import java.awt.*;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Stream;
 
-import static com.jmariner.vlcremote.util.Constants.*;
+import static com.jmariner.vlcremote.util.Constants.FLOW_CENTER;
+import static com.jmariner.vlcremote.util.Constants.MAIN_WIDTH;
 
 public class GuiUtils {
 
@@ -67,6 +70,17 @@ public class GuiUtils {
 			panel.add(p);
 		});
 		return panel;
+	}
+
+	public static <T extends Component> List<T> getComponents(Container c, Class<T> cls) {
+		List<T> out = new ArrayList<>();
+		Arrays.asList(c.getComponents()).forEach(com -> {
+			if (cls.isInstance(com))
+				out.add((T) com);
+			if (com instanceof Container)
+				out.addAll(getComponents((Container) com, cls));
+		});
+		return out;
 	}
 
 }

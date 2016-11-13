@@ -68,7 +68,7 @@ public class ControlsPanel extends JPanel {
 	
 	private void init() {
 		
-		Dimension buttonSize = GuiUtils.squareDim((int) (SimpleIcon.ICON_SIZE * 1.25));
+		Dimension buttonSize = GuiUtils.squareDim((int) (SimpleIcon.Defaults.SIZE * 1.25));
 		
 		playPauseButton = new JButton(SimpleIcon.PLAY.get());
 		playPauseButton.setActionCommand("PLAY");

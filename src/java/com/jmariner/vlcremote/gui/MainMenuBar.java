@@ -4,20 +4,19 @@ import com.jmariner.vlcremote.MyVLCRemote.Command;
 import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
-
 import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
+import java.awt.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static com.jmariner.vlcremote.util.Constants.MAIN_WIDTH;
 import static com.jmariner.vlcremote.util.Constants.MENUBAR_HEIGHT;
 import static java.awt.event.KeyEvent.VK_O;
 import static java.awt.event.KeyEvent.VK_T;
 import static javax.swing.JOptionPane.INFORMATION_MESSAGE;
-
-import java.awt.AWTEvent;
-import java.awt.Dimension;
-import java.util.List;
 
 public class MainMenuBar extends JMenuBar {
 
@@ -32,6 +31,8 @@ public class MainMenuBar extends JMenuBar {
 						editKeybinds;
 	
 	private List<String> eqPresets;
+	private Map<String,  JRadioButtonMenuItem> eqPresetButtons;
+	private ButtonGroup eqPresetGroup;
 
 	protected MainMenuBar(RemoteInterface gui) {
 		super();
@@ -39,6 +40,8 @@ public class MainMenuBar extends JMenuBar {
 		this.gui = gui;
 		
 		this.eqPresets = null;
+
+		this.eqPresetButtons = new HashMap<>();
 
 		init();
 		initListeners();
@@ -51,7 +54,7 @@ public class MainMenuBar extends JMenuBar {
 		debugBorders = new JCheckBoxMenuItem("Show debug borders");
 		updateDelayInput = new JMenuItem("Set update delay");
 		instantPause = new JCheckBoxMenuItem("Enable instant pause");
-		setEqPreset = new JMenuItem("Equalizer...");
+		setEqPreset = new JMenu("Equalizer");
 		editKeybinds = new JMenuItem("Edit Keybinds...");
 
 		JMenu tools = new JMenu("Tools");
@@ -75,6 +78,26 @@ public class MainMenuBar extends JMenuBar {
 		this.add(options);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, MENUBAR_HEIGHT));
 	}
+
+	private void initEqPresets() {
+		setEqPreset.removeAll();
+		eqPresetGroup = new ButtonGroup();
+		eqPresets.stream().forEachOrdered(s -> {
+			JRadioButtonMenuItem b = new JRadioButtonMenuItem(s);
+
+			int presetId = eqPresets.indexOf(s);
+			b.addActionListener(e -> {
+				gui.getRemote().sendCommand(Command.SET_EQ_ENABLED, "1");
+				gui.getRemote().sendCommand(Command.SET_EQ_PRESET, ""+presetId);
+			});
+
+			setEqPreset.add(b);
+			eqPresetGroup.add(b);
+
+			s = s.toLowerCase().replaceAll("\\s", "").replace("and", "");
+			eqPresetButtons.put(s, b);
+		});
+	}
 	
 	protected void initPost() {
 		restartStream.setEnabled(true);
@@ -91,13 +114,22 @@ public class MainMenuBar extends JMenuBar {
 		restartStream.addActionListener(e -> gui.getAction("restartStream").run());
 		gotoPreferences.addActionListener(e -> UserSettings.viewPreferencesFile());
 		updateDelayInput.addActionListener(this::setUpdateDelay);
-		setEqPreset.addActionListener(this::setEqPreset);
 		editKeybinds.addActionListener(gui::editKeybindsPopup);
 	}
 	
 	protected void update(VLCStatus status) {
-		eqPresets = status.getEqPresets();
+		if (eqPresets == null) {
+			eqPresets = status.getEqPresets();
+			initEqPresets();
+		}
 		setEqPreset.setEnabled(eqPresets.size() > 0);
+
+		JRadioButtonMenuItem curEqButton = eqPresetButtons.get(status.getEqPreset());
+		if (!curEqButton.isSelected()) {
+		//	eqPresetGroup.clearSelection();
+			eqPresetGroup.setSelected(curEqButton.getModel(), true);
+		}
+
 	}
 	
 	private void setUpdateDelay(AWTEvent e) {

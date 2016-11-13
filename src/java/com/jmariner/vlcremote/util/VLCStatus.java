@@ -15,13 +15,13 @@ public class VLCStatus {
 	@Getter(AccessLevel.NONE)
 	private Map<String, String> map;
 
-	private String version, album, title, filename, artist, genre, artworkUrl;
+	private String version, album, title, filename, artist, genre, artworkUrl, eqPreset;
 	private boolean shuffle, loop, repeat;
 	private int time, volume, length, currentID;
 	private double position, rate;
 	private State state;
 	
-	@Getter @Setter
+	@Setter
 	private List<String> eqPresets;
 
 	private String get(String key) {
@@ -50,6 +50,7 @@ public class VLCStatus {
 		this.artist = get("artist");
 		this.genre = get("genre");
 		this.artworkUrl = get("artwork_url");
+		this.eqPreset = get("eqPreset");
 
 		this.shuffle = getBoolean("random");
 		this.loop = getBoolean("loop");

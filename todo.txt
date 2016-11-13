@@ -4,13 +4,11 @@ option to only shuffle/loop through filtered song list (may not be easy, will ne
 
 table: wait for a way to get song metadata through vlc; only things we have currently are title, artist, and duration. album is containing folder which is a bit hacky)
 
-switch to using VLC's media library function, where multiple folders can be added and swapped between. need to rewrite playlist parser to account for this, as well as keep track of each different playlist/folder using a list or map
-
 reconnect after timeout and continue update loop
 
-***
-create custom/status.json just like custom/playlist.json
-add vlc.var.get(vlc.object.aout(), "equalizer-preset") to the status table in httprequests2.lua
+maybe make SVG icons take on color of container?
+
+table is not showing selection border until i click one of the items, no matter what. figure it out cause it's annoying
 
 ***
-switch icons to SVG as long as their color can be changed
+switch to using VLC's media library function, where multiple folders can be added and swapped between. need to rewrite playlist parser to account for this, as well as keep track of each different playlist/folder using a list or map

@@ -1,26 +1,23 @@
 package com.jmariner.vlcremote.util;
 
-import java.awt.event.ActionEvent;
-import javax.swing.AbstractAction;
-import javax.swing.Action;
-import javax.swing.InputMap;
-import javax.swing.JComponent;
-import javax.swing.JPanel;
-import javax.swing.KeyStroke;
-
 import com.jmariner.vlcremote.gui.RemoteInterface;
+
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.util.ArrayList;
+import java.util.List;
 
 public class LocalHotkeyHandler {
 	
 	private JPanel contentPane;
+
+	private List<String> actionIDs;
 	
 	public LocalHotkeyHandler(RemoteInterface gui) {
 		contentPane = (JPanel) gui.getContentPane();
-		
-		gui.getActions().forEach((id, a) -> {
-			contentPane.getActionMap().put(id, runnableToAction(a));
-		});
-		
+		actionIDs = new ArrayList<>();
+
+		gui.getActions().forEach((id, a) -> contentPane.getActionMap().put(id, runnableToAction(a)));
 	}
 	
 	private Action runnableToAction(Runnable a) {
@@ -70,6 +67,7 @@ public class LocalHotkeyHandler {
 	//------------------------primary method-------------------------------------------------
 
 	private void register(KeyStroke k, String actionID) {
+		actionIDs.add(actionID);
 		contentPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(k, actionID);
 	}
 	
@@ -78,5 +76,9 @@ public class LocalHotkeyHandler {
 	public void clear() {
 		InputMap i = contentPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
 		i.clear();
+	}
+
+	public void setEnabled(boolean enabled) {
+		actionIDs.forEach(s -> contentPane.getActionMap().get(s).setEnabled(enabled));
 	}
 }

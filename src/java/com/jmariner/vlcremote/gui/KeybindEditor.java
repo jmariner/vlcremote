@@ -40,7 +40,7 @@ public class KeybindEditor extends JDialog {
 	private static final int LOCAL_COL = 2;
 	private static final int GLOBAL_COL = 1;
 
-	private static final List<String> idList = Arrays.asList(
+	private static final List<String> ID_LIST = Arrays.asList(
 			"Play/Pause:playPause",
 			"Next:next",
 			"Previous:prev",
@@ -54,10 +54,8 @@ public class KeybindEditor extends JDialog {
 			"Restart Stream:restartStream"
 	);
 	
-	private static final List<String> localOnly = 
-			Arrays.asList("searchPlaylist");
-	private static final List<String> globalOnly = 
-			Arrays.asList("");
+	private static final List<String> LOCAL_ONLY = Arrays.asList("searchPlaylist");
+	private static final List<String> GLOBAL_ONLY = Arrays.asList("");
 	
 	protected KeybindEditor(RemoteInterface gui) {
 		super(gui, "Keybind Editor", true);
@@ -68,7 +66,7 @@ public class KeybindEditor extends JDialog {
 		globalKeybinds = UserSettings.getChild("globalKeybinds");
 		localKeybinds  = UserSettings.getChild("localKeybinds");
 		
-		idList.stream().forEachOrdered(s -> {
+		ID_LIST.stream().forEachOrdered(s -> {
 			String[] split = s.split(":");
 			assert gui.getActions().containsKey(split[1]);
 
@@ -206,8 +204,8 @@ public class KeybindEditor extends JDialog {
 			if (e.getClickCount() == 2) {
 				int c = table.getSelectedColumn();
 				if (c == LOCAL_COL || c == GLOBAL_COL) {
-					if (!(localOnly.contains(getSelectedId()) && c == GLOBAL_COL) &&
-						!(globalOnly.contains(getSelectedId()) && c == LOCAL_COL))
+					if (!(LOCAL_ONLY.contains(getSelectedId()) && c == GLOBAL_COL) &&
+						!(GLOBAL_ONLY.contains(getSelectedId()) && c == LOCAL_COL))
 							editSelectedKeybind(e);
 				}
 			}
@@ -268,11 +266,13 @@ public class KeybindEditor extends JDialog {
 			
 			((DefaultTableCellRenderer)renderer)
 					.setHorizontalAlignment(SwingConstants.CENTER);
-			
-			String id = keybindIdMap.get(table.getValueAt(row, 0));
 
-			if ((localOnly.contains(id) && column == GLOBAL_COL) ||
-					(globalOnly.contains(id) && column == LOCAL_COL)) {
+			// without "Redundant Cast" it's "Suspicious call to LinkedHashMap.get" to I can't win here
+			@SuppressWarnings("RedundantCast")
+			String id = keybindIdMap.get((String) table.getValueAt(row, 0));
+
+			if ((LOCAL_ONLY.contains(id) && column == GLOBAL_COL) ||
+					(GLOBAL_ONLY.contains(id) && column == LOCAL_COL)) {
 						setValueAt(DISABLED_STRING, row, column);
 			}
 

@@ -2,11 +2,7 @@ package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
-import com.jmariner.vlcremote.util.GlobalHotkeyHandler;
-import com.jmariner.vlcremote.util.GuiUtils;
-import com.jmariner.vlcremote.util.LocalHotkeyHandler;
-import com.jmariner.vlcremote.util.UserSettings;
-import com.jmariner.vlcremote.util.VLCStatus;
+import com.jmariner.vlcremote.util.*;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -19,10 +15,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.plaf.FontUIResource;
 import java.awt.*;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -44,25 +37,21 @@ public class RemoteInterface extends JFrame {
 	@Getter(AccessLevel.PROTECTED)
 	private LocalHotkeyHandler localHotkeyHandler;
 
-	private MainMenuBar menuBar;
-
 	private JPanel mainPanel;
-	
+	private JSeparator mainSeparator;
+
+	private MainMenuBar menuBar;
 	private LoginPanel loginPanel;
 	private StatusPanel statusPanel;
-	
 	private ProgressPanel progressPanel;
-	
 	private ControlsPanel controlsPanel;
-	
-	private JSeparator mainSeparator;
-	
-	private PlaylistPanel2 playlistPanel;
-	
+	private PlaylistPanel playlistPanel;
 	private KeybindEditor keybindEditor;
-	
-	private List<JComponent> controlComponents = new ArrayList<>();
-	
+
+	private List<JPanel> panels;
+	private List<JComponent> controlComponents;
+	private List<JTextField> textFields;
+
 	@Getter
 	private Map<String, Runnable> actions;
 
@@ -72,8 +61,7 @@ public class RemoteInterface extends JFrame {
 	private boolean connected, muted, playlistAreaShowing;
 
 	// this is to create a NullPointerException if i try using the superclass's HEIGHT value of 1
-	@SuppressWarnings("unused")
-	private static final Object HEIGHT = null;
+	@SuppressWarnings("unused") private static final Object HEIGHT = null;
 
 	public RemoteInterface() {
 
@@ -89,7 +77,10 @@ public class RemoteInterface extends JFrame {
 		} catch (UnsupportedLookAndFeelException e) {
 			e.printStackTrace();
 		}
-		
+
+		panels = new ArrayList<>();
+		textFields = new ArrayList<>();
+		controlComponents = new ArrayList<>();
 		actions = new HashMap<>();
 
 		menuBar = new MainMenuBar(this);
@@ -97,7 +88,7 @@ public class RemoteInterface extends JFrame {
 		statusPanel = new StatusPanel();
 		progressPanel = new ProgressPanel(this);
 		controlsPanel = new ControlsPanel(this);
-		playlistPanel = new PlaylistPanel2(this);
+		playlistPanel = new PlaylistPanel(this);
 
 		mainPanel = new JPanel(new BorderLayout(0, 20));
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
@@ -110,16 +101,31 @@ public class RemoteInterface extends JFrame {
 		mainSeparator = new JSeparator();
 
 		ClearFocusListener clearFocus = new ClearFocusListener();
+
+		panels = Arrays.asList(
+				mainPanel, playlistPanel, loginPanel, progressPanel, controlsPanel, statusPanel);
 		
 		controlComponents.forEach(c -> {
 			c.addKeyListener(clearFocus);
 			c.setEnabled(false);
 		});
-		
-		Arrays.asList(mainPanel, playlistPanel, loginPanel,
-				progressPanel, controlsPanel, statusPanel, mainSeparator).forEach(c -> {
+
+		panels.forEach(c -> {
 			c.addMouseListener(clearFocus);
+			textFields.addAll(GuiUtils.getComponents(c, JTextField.class));
 		});
+
+		textFields.forEach(t -> t.addFocusListener(new FocusListener() {
+			@Override
+			public void focusGained(FocusEvent e) { focusChanged(true);}
+			@Override
+			public void focusLost(FocusEvent e) { focusChanged(false); }
+
+			private void focusChanged(boolean f) {
+				if (localHotkeyHandler != null)
+					localHotkeyHandler.setEnabled(!f);
+			}
+		}));
 
 		this.setLayout(new BorderLayout());
 		this.add(mainPanel, BorderLayout.NORTH);
@@ -355,7 +361,7 @@ public class RemoteInterface extends JFrame {
 		public void run() {
 			if (connected) {
 				remote.stopStream();
-		// TODO	remote.sendCommand(Command.PAUSE);
+				remote.sendCommand(Command.PAUSE);
 			}
 			if (globalHotkeyHandler != null)
 				globalHotkeyHandler.cleanup();

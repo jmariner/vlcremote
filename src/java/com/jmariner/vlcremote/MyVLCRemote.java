@@ -54,6 +54,9 @@ public class MyVLCRemote {
 
 	@Getter
 	private Map<Integer, SongItem> songMap;
+
+	private static final String STATUS_REQUEST = "custom/status.json";
+	private static final String PLAYLIST_REQUEST = "custom/playlist.json";
 	
 	public MyVLCRemote(String host, int webPort, String password, int streamPort, Consumer<Throwable> handler) {
 		baseURL = String.format("http://%s:%s/", host, webPort);
@@ -273,11 +276,11 @@ public class MyVLCRemote {
 	}
 
 	private List<Map<String, String>> getPlaylist() {
-		return parsePlaylistJson(connect("custom/playlist.json"));
+		return parsePlaylistJson(connect(PLAYLIST_REQUEST));
 	}
 
 	public VLCStatus getStatus() {
-		String json = connect("requests/status.json");
+		String json = connect(STATUS_REQUEST);
 		status.update(parseStatusJson(json));
 		status.setEqPresets(parseStatusForEqualizerOptions(json));
 		return status;
@@ -290,7 +293,7 @@ public class MyVLCRemote {
 	public VLCStatus sendCommand(Command cmd, String val) {
 
 		String append = val == null ? "" : String.format("&%s=%s", cmd.getParamName(), encodeUrlParam(val));
-		connect("requests/status.json?command=" + cmd + append);
+		connect(STATUS_REQUEST + "?command=" + cmd + append);
 		return getStatus();
 	}
 
@@ -340,6 +343,12 @@ public class MyVLCRemote {
 
 			if (out.get("state").equals("stopped")) return out;
 
+			JsonElement eq = j.get("equalizer");
+			assert eq.isJsonObject();
+
+			JsonElement preset = eq.getAsJsonObject().get("preset");
+			out.put("eqPreset", preset == null ? null : preset.getAsString());
+
 			JsonElement info = j.get("information");
 			assert info.isJsonObject();
 
@@ -349,9 +358,10 @@ public class MyVLCRemote {
 			JsonElement meta = category.getAsJsonObject().get("meta");
 			assert meta.isJsonObject();
 
-			Stream.of("album", "title", "filename", "artist", "genre", "artwork_url").forEach(s ->
-				out.put(s, meta.getAsJsonObject().get(s) == null ? null : meta.getAsJsonObject().get(s).getAsString())
-			);
+			Stream.of("album", "title", "filename", "artist", "genre", "artwork_url").forEach(s -> {
+				JsonElement e =  meta.getAsJsonObject().get(s);
+				out.put(s, e == null ? null : e.getAsString());
+			});
 		}
 		return out;
 	}
