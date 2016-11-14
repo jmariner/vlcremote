@@ -184,7 +184,7 @@ public class RemoteInterface extends JFrame {
 
 			remote.setSourceVolume(1);
 			remote.sendCommand(Command.PLAY);
-			updateInterface(remote.getStatus());
+			updateInterface(remote.getNewStatus());
 			startUpdateLoop();
 			remote.playStream();
 		}
@@ -294,7 +294,7 @@ public class RemoteInterface extends JFrame {
 
 	private void startUpdateLoop() {
 		updateLoop = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(
-				() -> updateInterface(remote.getStatus()),
+				() -> updateInterface(remote.getNewStatus()),
 				0, UserSettings.getInt("updateDelay", 1000), TimeUnit.MILLISECONDS
 		);
 	}

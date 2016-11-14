@@ -1,13 +1,15 @@
 package com.jmariner.vlcremote.util;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.jmariner.vlcremote.SongItem;
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.Setter;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Getter
 public class VLCStatus {
@@ -20,27 +22,65 @@ public class VLCStatus {
 	private int time, volume, length, currentID;
 	private double position, rate;
 	private State state;
-	
-	@Setter
+
 	private List<String> eqPresets;
+	private Map<Integer, SongItem> songMap;
+
+	@Getter(AccessLevel.NONE)
+	private boolean playlistExists;
+
+	public VLCStatus() {
+		eqPresets = new ArrayList<>();
+		songMap = new HashMap<>();
+	}
 
 	private String get(String key) {
 		return map.get(key);
 	}
-
 	private int getInt(String key) {
 		return Integer.parseInt(get(key));
 	}
-
 	private boolean getBoolean(String key) {
 		return Boolean.parseBoolean(get(key));
 	}
-
 	private double getDouble(String key) {
 		return Double.parseDouble(get(key));
 	}
 
-	public void update(Map<String, String> vlcStatus) {
+	public void loadStatus(String json) {
+		loadMap(parseStatusJson(json));
+		eqPresets = parseStatusForEqualizerOptions(json);
+	}
+
+	public void loadPlaylist(String json) {
+		List<Map<String, String>> playlist = parsePlaylistJson(json);
+
+		playlistExists = playlist.size() > 0;
+
+		if (playlistExists) {
+			playlist.forEach(s -> {
+				int id = Integer.parseInt(s.get("id"));
+				assert !songMap.containsKey(id);
+
+				songMap.put(id, new SongItem(
+						id, s.get("title"), s.get("artist"), s.get("album"), Integer.parseInt(s.get("duration"))
+				));
+
+			});
+		}
+	}
+
+	public void loadMediaLibrary(String json) {
+
+	}
+
+	public SongItem getCurrentSong() {
+		return songMap.get(currentID);
+	}
+
+	public boolean playlistExists() { return playlistExists; }
+
+	private void loadMap(Map<String, String> vlcStatus) {
 		this.map = vlcStatus;
 
 		this.version = get("version");
@@ -66,6 +106,101 @@ public class VLCStatus {
 
 		String state = get("state").toUpperCase();
 		this.state = State.keys().contains(state) ? State.valueOf(state) : State.UNKNOWN;
+	}
+
+	private static Map<String, String> parseStatusJson(String json)  {
+
+		Map<String, String> out = new HashMap<>();
+
+		JsonElement el = new JsonParser().parse(json);
+
+		if (el.isJsonObject()) {
+			JsonObject j = el.getAsJsonObject();
+			Stream.of(
+					"time", "volume", "length", "random", "rate", "state", "loop", "version", "position", "repeat", "currentplid"
+			).forEach(s -> {
+				String key = s.equals("currentplid") ? "currentID" : s;
+				String val = j.get(s) == null ? "" : j.get(s).getAsString();
+				out.put(key, val);
+			});
+
+			if (out.get("state").equals("stopped")) return out;
+
+			JsonElement eq = j.get("equalizer");
+			assert eq.isJsonObject();
+
+			JsonElement preset = eq.getAsJsonObject().get("preset");
+			out.put("eqPreset", preset == null ? null : preset.getAsString());
+
+			JsonElement info = j.get("information");
+			assert info.isJsonObject();
+
+			JsonElement category = info.getAsJsonObject().get("category");
+			assert category.isJsonObject();
+
+			JsonElement meta = category.getAsJsonObject().get("meta");
+			assert meta.isJsonObject();
+
+			Stream.of("album", "title", "filename", "artist", "genre", "artwork_url").forEach(s -> {
+				JsonElement e =  meta.getAsJsonObject().get(s);
+				out.put(s, e == null ? null : e.getAsString());
+			});
+		}
+		return out;
+	}
+
+	private static List<String> parseStatusForEqualizerOptions(String json) {
+
+		List<String> out = new ArrayList<>();
+
+		JsonElement el = new JsonParser().parse(json);
+
+		if (el.isJsonObject()) {
+			JsonElement eq = el.getAsJsonObject().get("equalizer");
+			assert eq.isJsonObject();
+
+			JsonElement presetsEl = eq.getAsJsonObject().get("presets");
+			assert presetsEl.isJsonObject();
+
+			JsonObject presets = presetsEl.getAsJsonObject();
+			for (int i=0, l=presets.size(); i<l; i++) {
+				out.add(presets.get(String.format("preset id=\"%d\"", i)).getAsString());
+			}
+		}
+		return out;
+
+	}
+
+	private static List<Map<String, String>> parsePlaylistJson(String json) {
+		List<Map<String, String>> out = new ArrayList<>();
+
+		JsonElement root = new JsonParser().parse(json);
+		assert root.isJsonObject();
+
+		JsonElement playlist = root.getAsJsonObject().get("children");
+		assert playlist.isJsonArray();
+
+		playlist.getAsJsonArray().forEach(i -> {
+			Map<String, String> item = new HashMap<>();
+			JsonObject o = i.getAsJsonObject();
+
+			String id = o.get("id").getAsString();
+			item.put("id", id);
+
+			Stream.of("duration", "title", "name", "artist", "album").forEach(
+					s -> item.put(s, o.get(s).getAsString())
+			);
+
+			item.put("current", o.get("current") == null ? "false" : "true");
+
+			out.add(item);
+		});
+
+		return out;
+	}
+
+	private static Object parseLibraryJson(String json) {
+		return null;
 	}
 
 	public enum State {

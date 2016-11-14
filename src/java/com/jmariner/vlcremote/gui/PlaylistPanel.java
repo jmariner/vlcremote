@@ -210,7 +210,7 @@ public class PlaylistPanel extends JPanel {
 	}
 	
 	protected void update(VLCStatus status) {
-		currentSong = gui.getRemote().getCurrentSong(status);
+		currentSong = status.getCurrentSong();
 		if (table.getSelected() == null || !table.getSelected().equals(currentSong)) {
 			scrollToCurrent(null);
 		}
@@ -275,7 +275,7 @@ public class PlaylistPanel extends JPanel {
 		
 		protected void initPost() {
 			Vector<Vector<SongItem>> data = 
-					gui.getRemote().getSongMap().values().stream()
+					gui.getRemote().getStatus().getSongMap().values().stream()
 					.map(s -> new Vector<>(Collections.singletonList(s)))
 					.collect(Collectors.toCollection(Vector::new));
 			

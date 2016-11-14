@@ -1,9 +1,5 @@
 package com.jmariner.vlcremote;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.jmariner.vlcremote.util.VLCStatus;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
@@ -23,24 +19,19 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 @Slf4j
 public class MyVLCRemote {
 
+	@Getter
 	private VLCStatus status;
 
 	private String baseURL;
 	private String streamURL;
 
 	private String httpPassword;
-
-	private int firstID;
-	private int playlistLength;
 
 	@Getter
 	private boolean playingStream;
@@ -52,11 +43,9 @@ public class MyVLCRemote {
 	@Setter
 	private Consumer<Throwable> exceptionHandler;
 
-	@Getter
-	private Map<Integer, SongItem> songMap;
-
-	private static final String STATUS_REQUEST = "custom/status.json";
-	private static final String PLAYLIST_REQUEST = "custom/playlist.json";
+	private static final String STATUS_REQUEST = 	"custom/status.json";
+	private static final String PLAYLIST_REQUEST = 	"custom/playlist.json";
+	private static final String LIBRARY_REQUEST = 	"custom/library.json";
 	
 	public MyVLCRemote(String host, int webPort, String password, int streamPort, Consumer<Throwable> handler) {
 		baseURL = String.format("http://%s:%s/", host, webPort);
@@ -66,29 +55,13 @@ public class MyVLCRemote {
 
 		playbackVolume = 100;
 
-		loadSongList();
-
 		status = new VLCStatus();
-		
-	}
 
-	private void loadSongList() {
 
-		songMap = new HashMap<>();
-
-		getPlaylist().forEach(s -> {
-			int id = Integer.parseInt(s.get("id"));
-			assert !songMap.containsKey(id);
-
-			songMap.put(id, new SongItem(
-					id, s.get("title"), s.get("artist"), s.get("album"), Integer.parseInt(s.get("duration"))
-			));
-
-		});
-	}
-	
-	public SongItem getCurrentSong(VLCStatus status) {
-		return songMap.get(status.getCurrentID());
+		if (testConnection()) {
+			getNewStatus();
+			updatePlaylist();
+		}
 	}
 
 	private void playStream(int msDelay) {
@@ -275,14 +248,18 @@ public class MyVLCRemote {
 		return null;
 	}
 
-	private List<Map<String, String>> getPlaylist() {
-		return parsePlaylistJson(connect(PLAYLIST_REQUEST));
+	private void updatePlaylist() {
+		status.loadPlaylist(connect(PLAYLIST_REQUEST));
+		if (!status.playlistExists())
+			status.loadPlaylist(connect(LIBRARY_REQUEST));
 	}
 
-	public VLCStatus getStatus() {
-		String json = connect(STATUS_REQUEST);
-		status.update(parseStatusJson(json));
-		status.setEqPresets(parseStatusForEqualizerOptions(json));
+	private void updateStatus() {
+		status.loadStatus(connect(STATUS_REQUEST));
+	}
+
+	public VLCStatus getNewStatus() {
+		updateStatus();
 		return status;
 	}
 
@@ -294,7 +271,7 @@ public class MyVLCRemote {
 
 		String append = val == null ? "" : String.format("&%s=%s", cmd.getParamName(), encodeUrlParam(val));
 		connect(STATUS_REQUEST + "?command=" + cmd + append);
-		return getStatus();
+		return getNewStatus();
 	}
 
 	public VLCStatus setSourceVolume(double percentVolume) {
@@ -304,120 +281,8 @@ public class MyVLCRemote {
 		return sendCommand(Command.SET_VOLUME, ""+(percentVolume * 256));
 	}
 
-	private VLCStatus switchSongZeroBased(int zeroBasedID) {
-		if (zeroBasedID < 0)
-			zeroBasedID = 0;
-		if (zeroBasedID > playlistLength-1)
-			zeroBasedID = playlistLength-1;
-
-		return sendCommand(Command.PLAY_ITEM, ""+transformZeroBasedID(zeroBasedID));
-	}
-
 	public VLCStatus switchSong(int playlistID) {
-		return switchSongZeroBased(transformPlaylistID(playlistID));
-	}
-
-	private int transformZeroBasedID(int zeroBasedSongID) {
-		return zeroBasedSongID + firstID;
-	}
-
-	public int transformPlaylistID(int playlistID) {
-		return playlistID - firstID;
-	}
-
-	private static Map<String, String> parseStatusJson(String json)  {
-
-		Map<String, String> out = new HashMap<>();
-
-		JsonElement el = new JsonParser().parse(json);
-
-		if (el.isJsonObject()) {
-			JsonObject j = el.getAsJsonObject();
-			Stream.of(
-					"time", "volume", "length", "random", "rate", "state", "loop", "version", "position", "repeat", "currentplid"
-			).forEach(s -> {
-				String key = s.equals("currentplid") ? "currentID" : s;
-				String val = j.get(s) == null ? "" : j.get(s).getAsString();
-				out.put(key, val);
-			});
-
-			if (out.get("state").equals("stopped")) return out;
-
-			JsonElement eq = j.get("equalizer");
-			assert eq.isJsonObject();
-
-			JsonElement preset = eq.getAsJsonObject().get("preset");
-			out.put("eqPreset", preset == null ? null : preset.getAsString());
-
-			JsonElement info = j.get("information");
-			assert info.isJsonObject();
-
-			JsonElement category = info.getAsJsonObject().get("category");
-			assert category.isJsonObject();
-
-			JsonElement meta = category.getAsJsonObject().get("meta");
-			assert meta.isJsonObject();
-
-			Stream.of("album", "title", "filename", "artist", "genre", "artwork_url").forEach(s -> {
-				JsonElement e =  meta.getAsJsonObject().get(s);
-				out.put(s, e == null ? null : e.getAsString());
-			});
-		}
-		return out;
-	}
-	
-	private List<String> parseStatusForEqualizerOptions(String json) {
-		
-		List<String> out = new ArrayList<>();
-		
-		JsonElement el = new JsonParser().parse(json);
-		
-		if (el.isJsonObject()) {
-			JsonElement eq = el.getAsJsonObject().get("equalizer");
-			assert eq.isJsonObject();
-			
-			JsonElement presetsEl = eq.getAsJsonObject().get("presets");
-			assert presetsEl.isJsonObject();
-			
-			JsonObject presets = presetsEl.getAsJsonObject();
-			for (int i=0, l=presets.size(); i<l; i++) {
-				out.add(presets.get(String.format("preset id=\"%d\"", i)).getAsString());
-			}
-		}
-		return out;
-		
-	}
-
-	private List<Map<String, String>> parsePlaylistJson(String json) {
-		List<Map<String, String>> out = new ArrayList<>();
-
-		JsonElement root = new JsonParser().parse(json);
-		assert root.isJsonArray();
-		JsonArray items = root.getAsJsonArray();
-
-		firstID = -1;
-
-		items.getAsJsonArray().forEach(i -> {
-			Map<String, String> item = new HashMap<>();
-			JsonObject o = i.getAsJsonObject();
-
-			String id = o.get("id").getAsString();
-			item.put("id", id);
-			if (firstID == -1)
-				firstID = Integer.parseInt(id);
-
-			Stream.of("duration", "title", "name", "artist", "album").forEach(
-					s -> item.put(s, o.get(s).getAsString())
-			);
-
-			item.put("current", o.get("current") == null ? "false" : "true");
-
-			out.add(item);
-		});
-
-		playlistLength = out.size();
-
-		return out;
+		return sendCommand(Command.PLAY_ITEM, ""+playlistID);
 	}
 
 	private static String encodeUrlParam(String s) {

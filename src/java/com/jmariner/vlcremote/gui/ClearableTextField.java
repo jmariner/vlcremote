@@ -33,7 +33,7 @@ public class ClearableTextField extends JTextField {
 	private boolean showClearButton;
 
 	private static final JTextField DUMMY = new JTextField();
-	private static final Cursor BUTTON_CURSOR = new JButton().getCursor();
+	private static final Cursor BUTTON_CURSOR = new Cursor(Cursor.HAND_CURSOR);
 	private static final Cursor NORMAL_CURSOR = DUMMY.getCursor();
 
 	public ClearableTextField() {
