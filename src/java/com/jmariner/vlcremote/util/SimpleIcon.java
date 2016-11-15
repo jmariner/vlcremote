@@ -20,13 +20,18 @@ public enum SimpleIcon {
 	PLAYLIST,
 	FAVORITE,
 	FAVORITE_EMPTY,
-	CLEAR;
+	CLEAR,
+	PLAY_OUTLINE,
+	JUMP_TO,
+	CLEAR_FILTER;
 
 	private SVGIcon icon;
 
 	public static class Defaults {
 		public static final int SIZE = 24;
+		public static final int BUTTON_SIZE = (int) (SIZE * 1.25);
 		public static final Color COLOR = Color.BLACK;
+		public static final Color SELECTED_COLOR = Color.WHITE;
 	}
 
 	SimpleIcon() {

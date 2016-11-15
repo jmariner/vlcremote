@@ -2,6 +2,7 @@ package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
+import com.jmariner.vlcremote.gui.playlist.PlaylistPanel;
 import com.jmariner.vlcremote.util.*;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.AccessLevel;
@@ -30,7 +31,7 @@ import static javax.swing.JOptionPane.*;
 @SuppressWarnings({"FieldCanBeLocal", "UnusedParameters"})
 public class RemoteInterface extends JFrame {
 
-	@Getter(AccessLevel.PROTECTED)
+	@Getter
 	private MyVLCRemote remote;
 	@Getter(AccessLevel.PROTECTED)
 	private GlobalHotkeyHandler globalHotkeyHandler;
@@ -57,7 +58,7 @@ public class RemoteInterface extends JFrame {
 
 	private ScheduledFuture<?> updateLoop;
 
-	@Getter(AccessLevel.PROTECTED) @Setter(AccessLevel.PROTECTED)
+	@Getter @Setter
 	private boolean connected, muted, playlistAreaShowing;
 
 	// this is to create a NullPointerException if i try using the superclass's HEIGHT value of 1
@@ -222,7 +223,7 @@ public class RemoteInterface extends JFrame {
 		updateInterface(null);
 	}
 
-	protected void updateInterface(VLCStatus status) {
+	public void updateInterface(VLCStatus status) {
 
 		controlsPanel.updateVolume();
 
@@ -267,11 +268,11 @@ public class RemoteInterface extends JFrame {
 
 	}
 
-	protected void addControlComponent(JComponent c) {
+	public void addControlComponent(JComponent c) {
 		controlComponents.add(c);
 	}
 	
-	protected void togglePlaylistArea(AWTEvent e) {
+	public void togglePlaylistArea(AWTEvent e) {
 		playlistAreaShowing = !playlistAreaShowing;
 
 		if (playlistAreaShowing) {
@@ -305,7 +306,7 @@ public class RemoteInterface extends JFrame {
 		startUpdateLoop();
 	}
 
-	protected void clearFocus() {
+	public void clearFocus() {
 		mainPanel.requestFocus();
 	}
 

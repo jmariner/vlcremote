@@ -68,7 +68,7 @@ public class ControlsPanel extends JPanel {
 	
 	private void init() {
 		
-		Dimension buttonSize = GuiUtils.squareDim((int) (SimpleIcon.Defaults.SIZE * 1.25));
+		Dimension buttonSize = GuiUtils.squareDim(SimpleIcon.Defaults.BUTTON_SIZE);
 		
 		playPauseButton = new JButton(SimpleIcon.PLAY.get());
 		playPauseButton.setActionCommand("PLAY");
@@ -78,20 +78,26 @@ public class ControlsPanel extends JPanel {
 
 		prevButton = new JButton(SimpleIcon.PREV.get());
 		prevButton.setActionCommand("PREV");
+		
+		Color selected = SimpleIcon.Defaults.SELECTED_COLOR;
 
 		toggleRepeatButton = new JToggleButton(SimpleIcon.REPEAT.get());
+		toggleRepeatButton.setSelectedIcon(SimpleIcon.REPEAT.get(selected));
 		toggleRepeatButton.setActionCommand("TOGGLE_REPEAT");
 
 		toggleLoopButton = new JToggleButton(SimpleIcon.LOOP.get());
+		toggleLoopButton.setSelectedIcon(SimpleIcon.LOOP.get(selected));
 		toggleLoopButton.setActionCommand("TOGGLE_LOOP");
 
 		toggleShuffleButton = new JToggleButton(SimpleIcon.SHUFFLE.get());
+		toggleShuffleButton.setSelectedIcon(SimpleIcon.SHUFFLE.get(selected));
 		toggleShuffleButton.setActionCommand("TOGGLE_RANDOM");
 		
 		vlcControlButtons = Arrays.asList(prevButton, playPauseButton, nextButton,
 				toggleRepeatButton, toggleLoopButton, toggleShuffleButton);
 		
 		togglePlaylistButton = new JToggleButton(SimpleIcon.PLAYLIST.get());
+		togglePlaylistButton.setSelectedIcon(SimpleIcon.PLAYLIST.get(selected));
 		togglePlaylistButton.setToolTipText("Show playlist");
 		togglePlaylistButton.setPreferredSize(buttonSize);
 		

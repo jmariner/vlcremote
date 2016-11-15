@@ -1,6 +1,8 @@
-package com.jmariner.vlcremote.gui;
+package com.jmariner.vlcremote.gui.playlist;
 
 import com.jmariner.vlcremote.SongItem;
+import com.jmariner.vlcremote.gui.ClearableTextField;
+import com.jmariner.vlcremote.gui.RemoteInterface;
 import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.Constants;
 import com.jmariner.vlcremote.util.GuiUtils;
@@ -8,6 +10,7 @@ import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import javax.swing.border.Border;
@@ -21,6 +24,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.util.*;
 import java.util.List;
 import java.util.prefs.BackingStoreException;
@@ -29,12 +33,11 @@ import java.util.stream.Collectors;
 
 import static com.jmariner.vlcremote.util.Constants.*;
 
+@Slf4j
 public class PlaylistPanel extends JPanel {
 	
 	private RemoteInterface gui;
-	
-	private ImageIcon showFavorites, hideFavorites;
-	
+		
 	private Preferences favoritesPref;
 	@Getter(AccessLevel.PROTECTED)
 	private List<String> favorites;
@@ -43,7 +46,7 @@ public class PlaylistPanel extends JPanel {
 
 	private PlaylistTable table;
 	private ClearableTextField searchField;
-	private JButton playSelectedButton, favoriteButton, jumpToCurrentButton, clearFiltersButton;
+	private JButton playSelectedButton, favoriteButton, viewCurrentButton, clearFiltersButton;
 	private JToggleButton showFavoritesButton;
 
 	private static final Border SELECTED_BORDER 	= UIManager.getBorder("Table.focusCellHighlightBorder");
@@ -73,10 +76,6 @@ public class PlaylistPanel extends JPanel {
 	
 	private void init() {
 		table = new PlaylistTable();
-		
-		double scale = .75;
-		hideFavorites = SimpleIcon.FAVORITE.get(scale);
-		showFavorites = SimpleIcon.FAVORITE_EMPTY.get(scale);
 
 		JScrollPane scrollPane = new JScrollPane(
 				table,
@@ -91,18 +90,23 @@ public class PlaylistPanel extends JPanel {
 		searchField = new ClearableTextField(18);
 		searchField.setOnClear(gui::clearFocus);
 
-		showFavoritesButton = new JToggleButton(showFavorites);
+		showFavoritesButton = new JToggleButton(SimpleIcon.FAVORITE_EMPTY.get());
+		showFavoritesButton.setSelectedIcon(
+				SimpleIcon.FAVORITE.get(SimpleIcon.Defaults.SELECTED_COLOR));
 		showFavoritesButton.setToolTipText("Show favorites");
 		
-		playSelectedButton = new JButton("Play Selected");
+		playSelectedButton = new JButton(SimpleIcon.PLAY_OUTLINE.get());
 		playSelectedButton.setToolTipText("Play the selected song");
 		favoriteButton = new JButton("Favorite Selected");
 		favoriteButton.setToolTipText("Save selected song as favorite");
-		jumpToCurrentButton = new JButton("View Current");
-		jumpToCurrentButton.setToolTipText("View the currently playing song in the list");
-		clearFiltersButton = new JButton("Clear Filters");
+		viewCurrentButton = new JButton(SimpleIcon.JUMP_TO.get());
+		viewCurrentButton.setToolTipText("View the currently playing song in the list");
+		clearFiltersButton = new JButton(SimpleIcon.CLEAR_FILTER.get());
 		clearFiltersButton.setToolTipText("Clear the search and favorite filters");
-
+		
+		Dimension dim = GuiUtils.squareDim(SimpleIcon.Defaults.BUTTON_SIZE);
+		Arrays.asList(showFavoritesButton, playSelectedButton, viewCurrentButton, clearFiltersButton)
+		.forEach(b -> b.setPreferredSize(dim));
 
 		JPanel playlistSearch = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
 		playlistSearch.add(new JLabel("Search"));
@@ -114,7 +118,7 @@ public class PlaylistPanel extends JPanel {
 		playlistTop.add(playlistSearch, BorderLayout.EAST);
 
 		JPanel bottom = GuiUtils.horizontalGridOf(
-				playSelectedButton, favoriteButton, jumpToCurrentButton, clearFiltersButton);
+				playSelectedButton, favoriteButton, viewCurrentButton, clearFiltersButton);
 
 		this.setBorder(MAIN_PADDING_BORDER);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, PLAYLIST_HEIGHT));
@@ -130,7 +134,7 @@ public class PlaylistPanel extends JPanel {
 
 		playSelectedButton.addActionListener(this::switchSongToSelected);
 		favoriteButton.addActionListener(this::favoriteSelected);
-		jumpToCurrentButton.addActionListener(this::scrollToCurrent);
+		viewCurrentButton.addActionListener(this::scrollToCurrent);
 		clearFiltersButton.addActionListener(this::clearFilters);
 		
 		PlaylistListener listener = new PlaylistListener();
@@ -139,7 +143,7 @@ public class PlaylistPanel extends JPanel {
 		searchField.getDocument().addDocumentListener(listener);
 	}
 	
-	protected void initPost() {
+	public void initPost() {
 		table.initPost();
 	}
 	
@@ -150,13 +154,13 @@ public class PlaylistPanel extends JPanel {
 		table.setFilterEnabled(false);
 	}
 	
-	protected void startSearch() {
+	public void startSearch() {
 		if (!gui.isPlaylistAreaShowing())
 			gui.togglePlaylistArea(null);
 		searchField.requestFocusInWindow();
 	}
 	
-	protected void loadSettings() {
+	public void loadSettings() {
 		int i = 1;
 		String f;
 		while ((f = favoritesPref.get(""+i++, null)) != null)
@@ -165,7 +169,6 @@ public class PlaylistPanel extends JPanel {
 	
 	private void toggleShowFavorites(AWTEvent e) {
 		boolean sel = showFavoritesButton.isSelected();
-		showFavoritesButton.setIcon(sel ? hideFavorites : showFavorites);
 		showFavoritesButton.setToolTipText(sel ? "Show all" : "Show favorites");
 		table.setFilterEnabled(true);
 	}
@@ -206,10 +209,10 @@ public class PlaylistPanel extends JPanel {
 
 	private void searchChanged() {
 		table.setFilterEnabled(true);
-		jumpToCurrentButton.setEnabled(table.itemExists(currentSong));
+		viewCurrentButton.setEnabled(table.itemExists(currentSong));
 	}
 	
-	protected void update(VLCStatus status) {
+	public void update(VLCStatus status) {
 		currentSong = status.getCurrentSong();
 		if (table.getSelected() == null || !table.getSelected().equals(currentSong)) {
 			scrollToCurrent(null);
@@ -367,13 +370,27 @@ public class PlaylistPanel extends JPanel {
 			
 			private JLabel label, fav;
 			
+			private ImageIcon favIcon, addFavHoverIcon, addFavIcon;
+			
+			private int hoverRow;
+			private boolean hoverFav;
+			
 			public PlaylistCellRenderer() {
 				super(Constants.BORDER_LAYOUT);
+				
+				PlaylistTable table = PlaylistTable.this;
+				
+				int h = getRowHeight();
+				Color fg =  UIManager.getColor("Label.foreground");
+				
+				favIcon = SimpleIcon.FAVORITE.get(h, Color.PINK);
+				addFavHoverIcon = SimpleIcon.FAVORITE.get(h, fg);
+				addFavIcon = SimpleIcon.FAVORITE_EMPTY.get(h, fg);
 				
 				label = new JLabel();
 				label.setBorder(new EmptyBorder(0, MAIN_PADDING, 0, 0));
 				
-				fav = new JLabel(SimpleIcon.FAVORITE.get(getRowHeight(), Color.PINK));
+				fav = new JLabel();
 				label.setBorder(new EmptyBorder(0, 0, 0, MAIN_PADDING));
 				
 				fav.setVisible(false);
@@ -384,15 +401,33 @@ public class PlaylistPanel extends JPanel {
 				// TODO setting this to true makes this and the table transparent so the frame background shows
 				//		no idea why, it doesn't make any sense. just setting to false to table background can show
 				this.setOpaque(false);
+				
+				table.addMouseMotionListener(new MouseMotionAdapter() {
+					public void mouseMoved(MouseEvent e) {
+						Point p = e.getPoint();
+						hoverRow = table.rowAtPoint(p);
+						int w = (int)(table.getRowHeight() * 1.5);
+						table.repaint(
+								table.getWidth() - w,
+								0,
+								w,
+								table.getHeight()
+							);
+						hoverFav = p.x > table.getWidth()-w;
+					}
+				});
 			}
 			
 			@Override
-			public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int col) {
+			public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
 				
 				String s = v.toString();
 				
 				label.setText(s);
-				fav.setVisible(favorites.contains(s));
+				
+				boolean isFav = favorites.contains(s);
+				fav.setIcon(isFav ? favIcon : hoverFav ? addFavHoverIcon : addFavIcon);
+				fav.setVisible(r == hoverRow || isFav);
 				
 				if (sel) {
 					// TODO background colors don't do anything here, see previous todo
