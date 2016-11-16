@@ -18,6 +18,8 @@ public class PlaylistTable extends JTable {
 			
 	public PlaylistTable(PlaylistPanel playlist) {
 		super();
+		
+		this.setRowHeight(22);
 
 		this.playlist = playlist;
 		this.util = new PlaylistUtil(playlist, this);
@@ -115,17 +117,10 @@ public class PlaylistTable extends JTable {
 		
 		view.scrollRectToVisible(rect);
 	}
-
-	/**
-	 * Utility method for {@link JTable#editCellAt(int, int)}
-	 */
-	public boolean editCellAt(int r) {
-		return super.editCellAt(r, 0);
+	
+	protected void repaintHoverArea() {
+		int w = getWidth() / 5;
+		int x = getWidth() - w;
+		this.repaint(x, 0, w, getHeight());
 	}
-
-/*	@Override
-	public void removeEditor() {
-		if (getEditingRow() != playlist.hoverRow)
-			super.removeEditor();
-	}*/
 }

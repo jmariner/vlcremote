@@ -3,11 +3,11 @@ package com.jmariner.vlcremote.gui.playlist;
 import com.jmariner.vlcremote.SongItem;
 import com.jmariner.vlcremote.util.Constants;
 import com.jmariner.vlcremote.util.GuiUtils;
+import com.jmariner.vlcremote.util.SVGIcon;
 import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.UserSettings;
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import javax.swing.border.Border;
@@ -18,9 +18,9 @@ import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-@Slf4j
 @Getter
 public class PlaylistUtil {
 
@@ -32,10 +32,13 @@ public class PlaylistUtil {
 	private Filter filter;
 	private Renderer renderer;
 	private Model model;
+	private CellPanel cellPanel;
+	
+	protected static final double CELL_ICON_RATIO = .05;
 
 	private static final Border SELECTED_BORDER 	= UIManager.getBorder("Table.focusCellHighlightBorder");
-	private static final Color SELECTED_BACKGROUND = UIManager.getColor("Table.selectionBackground");
-	private static final Color SELECTED_FOREGROUND = UIManager.getColor("Table.selectionForeground");
+	private static final Color SELECTED_BACKGROUND 	= UIManager.getColor("Table.selectionBackground");
+	private static final Color SELECTED_FOREGROUND 	= UIManager.getColor("Table.selectionForeground");
 	private static final Color DEFAULT_BACKGROUND 	= UIManager.getColor("Table.background");
 	private static final Color DEFAULT_FOREGROUND 	= UIManager.getColor("Table.foreground");
 	private static final Border DEFAULT_BORDER;
@@ -50,50 +53,95 @@ public class PlaylistUtil {
 
 		this.filter = new Filter();
 		this.renderer = new Renderer();
+		this.cellPanel = new CellPanel();
 	}
 
 	protected void initPost() {
 		this.model = new Model();
 	}
 
-	private class CellPanel extends JPanel {
+	protected class CellPanel extends JPanel {
+		
+		private JPanel leftPanel;
 		private JLabel label, fav;
+		
+		@Getter(AccessLevel.PROTECTED)
+		private JPanel hoverPanel;
+		private JLabel favButton, playButton;
 
-		private ImageIcon favIcon, addFavHover, removeFavIcon;
-
-		private int hoverRow;
-		private boolean hoverFav;
+		private SVGIcon favIcon, addFavIcon, removeFavIcon, playIcon;
 
 		private Color foreground;
+		
+		private boolean sizeSet;
+		
+		private final int PADDING;
 
 		public CellPanel() {
 			super(Constants.BORDER_LAYOUT);
+			
+			this.sizeSet = false;
+			
+			this.PADDING = 5;
 
-			int size = table.getRowHeight();
+			int size = table.getRowHeight()-2;
 			this.foreground =  UIManager.getColor("Table.foreground");
 
 			favIcon = SimpleIcon.FAVORITE.get(size, Color.PINK);
-			addFavHover = SimpleIcon.FAVORITE.get(size, foreground);
+			addFavIcon = SimpleIcon.FAVORITE.get(size, foreground);
 			removeFavIcon = SimpleIcon.FAVORITE_EMPTY.get(size, foreground);
+			playIcon = SimpleIcon.PLAY_OUTLINE.get(size, foreground);
 
 			label = new JLabel();
-
 			fav = new JLabel();
-			fav.setPreferredSize(GuiUtils.squareDim(size));
+			
+			leftPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, PADDING, 0));
+			leftPanel.setOpaque(false);
+			leftPanel.add(fav);
+			leftPanel.add(label);
+			
+			favButton = new JLabel(addFavIcon);
+			playButton = new JLabel(playIcon);
+			playButton.setToolTipText("Play this song");
+			
+			Arrays.asList(favButton, playButton).forEach(l -> {
+				l.setVisible(false);
+				l.setCursor(new Cursor(Cursor.HAND_CURSOR));
+			});
+			
+			hoverPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, PADDING, 0));
+			hoverPanel.setOpaque(false);
+			hoverPanel.add(favButton);
+			hoverPanel.add(playButton);
+			// TODO mouse click listeners on "buttons"
+			
+			Arrays.asList(fav, favButton, playButton)
+				.forEach(l -> l.setPreferredSize(GuiUtils.squareDim(size)));
 
-			JPanel left = new JPanel(new FlowLayout(FlowLayout.LEADING, 5, 0));
-			left.setOpaque(false);
-			left.add(fav);
-			left.add(label);
-
-			log.info(this.getUI().getClass().getName());
 			this.putClientProperty("backgroundTexture", new Object());
-			this.add(left, BorderLayout.WEST);
+			this.add(leftPanel, BorderLayout.WEST);
+			this.add(hoverPanel, BorderLayout.EAST);
 
 			this.setOpaque(true);
 		}
 
 		public JPanel update(SongItem v, boolean sel, int r, boolean editing) {
+			
+			if (!sizeSet) {
+				int h = table.getRowHeight();
+				int w = table.getWidth();
+				
+				// right panel width
+				int rw = (int) (w * 2*CELL_ICON_RATIO);
+				hoverPanel.setPreferredSize(new Dimension(rw, h));
+				leftPanel.setPreferredSize(new Dimension(w-rw, h));
+
+				// left icon width
+				int lw = (int) (w * CELL_ICON_RATIO);
+				label.setPreferredSize(new Dimension(w-rw-lw-3*PADDING, h));
+				
+				sizeSet = true;
+			}
 
 			String s = v.toString();
 
@@ -101,7 +149,8 @@ public class PlaylistUtil {
 
 			boolean isFav = UserSettings.isFavorite(s);
 			fav.setIcon(isFav ? favIcon : null);
-
+			favButton.setIcon(isFav ? removeFavIcon : addFavIcon);
+			
 			if (sel) {
 				this.setBackground(SELECTED_BACKGROUND);
 				this.setForeground(SELECTED_FOREGROUND);
@@ -112,14 +161,14 @@ public class PlaylistUtil {
 				this.setForeground(DEFAULT_FOREGROUND);
 				this.setBorder(DEFAULT_BORDER);
 			}
-
-			if (r == playlist.hoverRow) {
-				// is hovering
-			}
-			else {
-				// undo hover settings above
-			}
-
+			
+			boolean hover = r == playlist.hoverRow;
+			favButton.setVisible(hover);
+			
+			boolean cur = playlist.currentSong.getId() == v.getId();
+			playButton.setVisible(hover || cur);
+			playButton.setIcon(playIcon.recolor(cur ? SELECTED_FOREGROUND : foreground));
+			
 			return this;
 		}
 
@@ -129,25 +178,18 @@ public class PlaylistUtil {
 		@Override public void repaint(Rectangle r) {}
 		@Override public void repaint() {}
 		@Override public void firePropertyChange(String p, boolean o, boolean n) {}
-
 	}
 
 	private class Renderer extends AbstractCellEditor implements TableCellEditor, TableCellRenderer {
 
-		private CellPanel panel;
-
-		public Renderer() {
-			panel = new CellPanel();
-		}
-
 		@Override
 		public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
-			return panel.update((SongItem) v, s, r, false);
+			return cellPanel.update((SongItem) v, s, r, false);
 		}
 
 		@Override
 		public Component getTableCellEditorComponent(JTable t, Object v, boolean s, int r, int c) {
-			return panel.update((SongItem) v, s, r, true);
+			return cellPanel.update((SongItem) v, s, r, true);
 		}
 
 		@Override
@@ -162,7 +204,7 @@ public class PlaylistUtil {
 			if (!playlist.filterEnabled)
 				return true;
 
-			String filterText = playlist.searchField.getText().trim();
+			String filterText = playlist.searchField.getText();
 			String name = entry.getStringValue(0);
 			boolean show = true;
 

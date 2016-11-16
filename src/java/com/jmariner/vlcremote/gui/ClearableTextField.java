@@ -3,7 +3,6 @@ package com.jmariner.vlcremote.gui;
 import com.jmariner.vlcremote.util.SVGIcon;
 import com.jmariner.vlcremote.util.SimpleIcon;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.xmlgraphics.java2d.color.ColorUtil;
 
 import javax.swing.*;
@@ -11,11 +10,12 @@ import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.text.PlainDocument;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.util.EventObject;
 
-@Slf4j
 public class ClearableTextField extends JTextField {
 
 	private SVGIcon clearIcon;
@@ -29,8 +29,8 @@ public class ClearableTextField extends JTextField {
 	@Setter
 	private Runnable onClear;
 
-	private int iconHorizontalThreshold;
-	private boolean showClearButton;
+	private int mouseX, iconHorizontalThreshold;
+	private boolean isHovering, hasText;
 
 	@Setter
 	private Runnable changeAction;
@@ -58,7 +58,7 @@ public class ClearableTextField extends JTextField {
 		this.focusReceiver = null;
 		this.onClear = null;
 
-		this.showClearButton = false;
+		this.isHovering = false;
 
 		this.normalBorder = DUMMY.getBorder();
 		this.defaultInsets = normalBorder.getBorderInsets(DUMMY);
@@ -69,12 +69,13 @@ public class ClearableTextField extends JTextField {
 		});
 
 		this.addFocusListener(new FocusAdapter() {
-			public void focusGained(FocusEvent e) { showClearButton = true; }
+			public void focusGained(FocusEvent e) { isHovering = true; }
 		});
 
-		MainListener mouseListener = new MainListener();
-		this.addMouseMotionListener(mouseListener);
-		this.addMouseListener(mouseListener);
+		MainListener listener = new MainListener();
+		this.addMouseMotionListener(listener);
+		this.addMouseListener(listener);
+		((PlainDocument) this.getDocument()).addDocumentListener(listener);
 	}
 
 	private void onResize() {
@@ -99,7 +100,7 @@ public class ClearableTextField extends JTextField {
 	@Override
 	protected void paintComponent(Graphics g) {
 		super.paintComponent(g);
-		if (clearIcon != null && showClearButton && !getText().equals("")) {
+		if (showClearButton()) {
 			Point p = getIconPos();
 			clearIcon.paintIcon(this, g, p.x, p.y);
 		}
@@ -110,9 +111,16 @@ public class ClearableTextField extends JTextField {
 	}
 
 	private void searchChanged() {
+		hasText = !getText().equals("");
+		updateCursor();
 		repaintIcon();
 		if (changeAction != null)
 			changeAction.run();
+	}
+	
+	private void updateCursor() {
+		setCursor(showClearButton() && mouseX > iconHorizontalThreshold 
+				? BUTTON_CURSOR : NORMAL_CURSOR);
 	}
 
 	public void clear() {
@@ -122,34 +130,37 @@ public class ClearableTextField extends JTextField {
 		if (onClear != null)
 			onClear.run();
 	}
+	
+	private boolean showClearButton() {
+		return isHovering && hasText && clearIcon != null;
+	}
 
 	private class MainListener extends MouseAdapter implements DocumentListener {
 		@Override
 		public void mouseMoved(MouseEvent e) {
 			Point p = e.getPoint();
-			if (p.x > iconHorizontalThreshold) {
-				setCursor(BUTTON_CURSOR);
-
+			mouseX = p.x;
+			updateCursor();
+			
+			if (showClearButton() && mouseX > iconHorizontalThreshold) {
+				
 				Color darker = ColorUtil.lightenColor(getForeground(), -.25f);
 				clearIcon = clearIcon.recolor(darker);
 				repaintIcon();
 			}
-			else {
-				setCursor(NORMAL_CURSOR);
-
+			else
 				updateIcon(null);
-			}
 		}
 
 		@Override
 		public void mouseExited(MouseEvent e) {
 			updateIcon(null);
-			showClearButton = false;
+			isHovering = false;
 		}
 
 		@Override
 		public void mouseEntered(MouseEvent e) {
-			showClearButton = true;
+			isHovering = true;
 		}
 
 		@Override

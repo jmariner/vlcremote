@@ -35,7 +35,7 @@ public class ControlsPanel extends JPanel {
 	private JToggleButton toggleRepeatButton, toggleLoopButton, toggleShuffleButton;
 	private JToggleButton togglePlaylistButton;
 
-	private JButton toggleMuteButton;
+	private JToggleButton toggleMuteButton;
 	private JSlider volumeSlider;
 	private JTextField volumeTextField;
 	
@@ -109,7 +109,8 @@ public class ControlsPanel extends JPanel {
 		});
 		leftHalf.add(togglePlaylistButton);
 		
-		toggleMuteButton = new JButton(SimpleIcon.VOLUME_HIGH.get());
+		toggleMuteButton = new JToggleButton(SimpleIcon.VOLUME_HIGH.get());
+		toggleMuteButton.setSelectedIcon(SimpleIcon.VOLUME_OFF.get(selected));
 		toggleMuteButton.setPreferredSize(buttonSize);
 		
 		volumeSlider = new JSlider(0, 200, 100);
@@ -153,13 +154,13 @@ public class ControlsPanel extends JPanel {
 			volumeTextField.setText(volume + "%");
 		
 		SimpleIcon volumeIcon =
-				gui.isMuted() ? SimpleIcon.VOLUME_OFF :
 				volume == 0 ? SimpleIcon.VOLUME_NONE :
 				volume < 100 ? SimpleIcon.VOLUME_LOW :
 				SimpleIcon.VOLUME_HIGH;
 
 		toggleMuteButton.setIcon(volumeIcon.get());
-		toggleMuteButton.setToolTipText("Click to " + (gui.isMuted() ? "unmute" : "mute"));
+		toggleMuteButton.setToolTipText("Click to " +
+				(gui.getRemote().isMuted() ? "unmute" : "mute"));
 	}
 	
 	protected void update(VLCStatus status) {
@@ -215,7 +216,7 @@ public class ControlsPanel extends JPanel {
 	}
 
 	private void volumeChanged(ChangeEvent e) {
-		if (gui.isMuted()) gui.setMuted(false);
+		if (gui.getRemote().isMuted()) gui.getRemote().setMuted(false);
 		gui.getRemote().setPlaybackVolume(volumeSlider.getValue());
 	}
 
@@ -247,13 +248,9 @@ public class ControlsPanel extends JPanel {
 	}
 
 	private void toggleMute(EventObject e) {
-		gui.setMuted(!gui.isMuted());
-		if (gui.isMuted())
-			gui.getRemote().setPlaybackVolume(0); // TODO setting mute this way now sets slider to zero; put mute function in remote
-		else
-			volumeChanged(null); // updates volume from slider
-
-		gui.updateInterface();
+		gui.getRemote().toggleMute();
+		
+		updateVolume();
 	}
 	
 	private class VolumeSliderMouseListener extends MouseAdapter {

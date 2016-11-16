@@ -2,6 +2,7 @@ package com.jmariner.vlcremote.util;
 
 import com.jmariner.vlcremote.Main;
 import lombok.extern.slf4j.Slf4j;
+import net.infotrek.util.prefs.FilePreferences;
 import net.infotrek.util.prefs.FilePreferencesFactory;
 
 import java.io.File;
@@ -55,11 +56,15 @@ public class UserSettings {
 	}
 
 	private static String toKey(String s) {
-		if (s.length() > Preferences.MAX_KEY_LENGTH)
-			s = s.substring(0, Preferences.MAX_KEY_LENGTH);
+		
+		// strip problematic characters; this is fine since we won't convert back
+		s = s.replaceAll("[\\s\\.]", "");
+		
+		int cutoff = Preferences.MAX_KEY_LENGTH;
+		if (s.length() > cutoff)
+			s = s.substring(0, cutoff);
 
-		// ` should (hopefully) never be used in a key name
-		return s.replaceAll("\\s", "`");
+		return s;
 	}
 
 	public static void addFavorite(String s) {

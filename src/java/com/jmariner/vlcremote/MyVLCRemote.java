@@ -34,11 +34,12 @@ public class MyVLCRemote {
 	private String httpPassword;
 
 	@Getter
-	private boolean playingStream;
+	private boolean playingStream, muted;
 
 	@Getter @Setter
 	private int playbackVolume;
 	private SourceDataLine playbackLine;
+	private FloatControl gainControl;
 
 	@Setter
 	private Consumer<Throwable> exceptionHandler;
@@ -54,9 +55,11 @@ public class MyVLCRemote {
 		exceptionHandler = handler;
 
 		playbackVolume = 100;
+		
+		playingStream = false;
+		muted = false;
 
 		status = new VLCStatus();
-
 
 		if (testConnection()) {
 			getNewStatus();
@@ -128,7 +131,7 @@ public class MyVLCRemote {
 			playbackLine = (SourceDataLine) AudioSystem.getLine(info);
 			playbackLine.open(format);
 			
-			FloatControl gainControl = (FloatControl) playbackLine.getControl(FloatControl.Type.MASTER_GAIN);
+			gainControl = (FloatControl) playbackLine.getControl(FloatControl.Type.MASTER_GAIN);
 
 			// Allocate a buffer for reading from the input stream and writing
 			// to the line.  Make it large enough to hold 4k audio frames.
@@ -170,7 +173,7 @@ public class MyVLCRemote {
 					System.arraycopy(buffer, bytesToWrite, buffer, 0, remaining);
 				numBytes = remaining;
 
-				if (gainControl.getValue() != convertVolume(playbackVolume)) {
+				if (!muted && gainControl.getValue() != convertVolume(playbackVolume)) {
 					if (playbackVolume > 200) playbackVolume = 200;
 					if (playbackVolume < 0) playbackVolume = 0;
 					gainControl.setValue(convertVolume(playbackVolume));
@@ -192,6 +195,20 @@ public class MyVLCRemote {
 			catch (IOException e) {
 				e.printStackTrace();
 			}
+		}
+	}
+	
+	public void toggleMute() {
+		setMuted(!muted);
+	}
+	
+	public void setMuted(boolean m) {
+		muted = m;
+		if (m) {
+			gainControl.setValue(convertVolume(0));
+		}
+		else {
+			gainControl.setValue(convertVolume(playbackVolume));
 		}
 	}
 
@@ -282,6 +299,8 @@ public class MyVLCRemote {
 	}
 
 	public VLCStatus switchSong(int playlistID) {
+		if (!playingStream)
+			playStream();
 		return sendCommand(Command.PLAY_ITEM, ""+playlistID);
 	}
 

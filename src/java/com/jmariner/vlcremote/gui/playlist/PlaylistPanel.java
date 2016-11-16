@@ -7,7 +7,6 @@ import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
-import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
@@ -20,17 +19,16 @@ import java.util.Map;
 
 import static com.jmariner.vlcremote.util.Constants.*;
 
-@Slf4j
 public class PlaylistPanel extends JPanel {
 
 	private RemoteInterface gui;
 
 	private PlaylistTable table;
 
-	private SongItem currentSong;
 
 	private JButton playSelectedButton, favoriteButton, viewCurrentButton, clearFiltersButton;
 
+	protected SongItem currentSong;
 	protected ClearableTextField searchField;
 	protected JToggleButton showFavoritesButton;
 	protected boolean filterEnabled;
@@ -198,23 +196,19 @@ public class PlaylistPanel extends JPanel {
 			if (e.getClickCount() == 2) {
 				switchSongToSelected(null);
 			}
+			e.consume();
 		}
 
 		@Override
 		public void mouseMoved(MouseEvent e) {
-			Point p = e.getPoint();
-			hoverRow = table.rowAtPoint(p);
-
-			// repaint area that is updated by hovering
-
-		/*	int w = (int)(table.getRowHeight() * 1.5);
-			table.repaint(
-					table.getWidth() - w,
-					0,
-					w,
-					table.getHeight()
-			);
-			hoverFav = p.x > table.getWidth()-w; */
+			hoverRow = table.rowAtPoint(e.getPoint());
+			table.repaintHoverArea();
+		}
+		
+		@Override
+		public void mouseExited(MouseEvent e) {
+			hoverRow = -2; // -2 since JTable's row getters return -1 for none
+			table.repaintHoverArea();
 		}
 	}
 

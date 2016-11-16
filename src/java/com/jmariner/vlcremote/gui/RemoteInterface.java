@@ -59,7 +59,7 @@ public class RemoteInterface extends JFrame {
 	private ScheduledFuture<?> updateLoop;
 
 	@Getter @Setter
-	private boolean connected, muted, playlistAreaShowing;
+	private boolean connected, playlistAreaShowing;
 
 	// this is to create a NullPointerException if i try using the superclass's HEIGHT value of 1
 	@SuppressWarnings("unused") private static final Object HEIGHT = null;
