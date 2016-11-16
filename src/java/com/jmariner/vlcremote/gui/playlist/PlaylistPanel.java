@@ -205,7 +205,7 @@ public class PlaylistPanel extends JPanel {
 			Point p = e.getPoint();
 			hoverRow = table.rowAtPoint(p);
 
-
+			// repaint area that is updated by hovering
 
 		/*	int w = (int)(table.getRowHeight() * 1.5);
 			table.repaint(

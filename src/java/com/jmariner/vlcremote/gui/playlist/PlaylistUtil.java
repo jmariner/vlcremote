@@ -7,6 +7,7 @@ import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.UserSettings;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import javax.swing.border.Border;
@@ -19,6 +20,7 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Getter
 public class PlaylistUtil {
 
@@ -84,11 +86,11 @@ public class PlaylistUtil {
 			left.add(fav);
 			left.add(label);
 
+			log.info(this.getUI().getClass().getName());
+			this.putClientProperty("backgroundTexture", new Object());
 			this.add(left, BorderLayout.WEST);
 
-			// TODO setting this to true makes this and the table transparent so the frame background shows
-			//		no idea why, it doesn't make any sense. just setting to false so table background can show
-			this.setOpaque(false);
+			this.setOpaque(true);
 		}
 
 		public JPanel update(SongItem v, boolean sel, int r, boolean editing) {
@@ -101,7 +103,6 @@ public class PlaylistUtil {
 			fav.setIcon(isFav ? favIcon : null);
 
 			if (sel) {
-				// TODO background colors don't do anything here, see previous todo
 				this.setBackground(SELECTED_BACKGROUND);
 				this.setForeground(SELECTED_FOREGROUND);
 				this.setBorder(SELECTED_BORDER);
@@ -112,7 +113,12 @@ public class PlaylistUtil {
 				this.setBorder(DEFAULT_BORDER);
 			}
 
-			label.setForeground(editing ? Color.RED : foreground);
+			if (r == playlist.hoverRow) {
+				// is hovering
+			}
+			else {
+				// undo hover settings above
+			}
 
 			return this;
 		}
