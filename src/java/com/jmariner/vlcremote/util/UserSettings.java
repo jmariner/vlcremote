@@ -1,8 +1,6 @@
 package com.jmariner.vlcremote.util;
 
 import com.jmariner.vlcremote.Main;
-import com.jmariner.vlcremote.gui.RemoteInterface;
-
 import lombok.extern.slf4j.Slf4j;
 import net.infotrek.util.prefs.FilePreferencesFactory;
 
@@ -54,6 +52,26 @@ public class UserSettings {
 	public static Preferences getRoot() {
 		if (prefs == null) prefs = initPreferences();
 		return prefs;
+	}
+
+	private static String toKey(String s) {
+		if (s.length() > Preferences.MAX_KEY_LENGTH)
+			s = s.substring(0, Preferences.MAX_KEY_LENGTH);
+
+		// ` should (hopefully) never be used in a key name
+		return s.replaceAll("\\s", "`");
+	}
+
+	public static void addFavorite(String s) {
+		getChild("favorites").putBoolean(toKey(s), true);
+	}
+
+	public static void removeFavorite(String s) {
+		getChild("favorites").remove(toKey(s));
+	}
+
+	public static boolean isFavorite(String s) {
+		return getChild("favorites").getBoolean(toKey(s), false);
 	}
 	
 	/**
@@ -123,14 +141,6 @@ public class UserSettings {
 		return getRoot().get(key, null) != null;
 	}
 
-	public static void viewPreferencesFile() {
-		try {
-			Runtime.getRuntime().exec("explorer.exe /select," + getPrefsFile().getPath());
-		} catch (IOException ex) {
-			ex.printStackTrace();
-		}
-	}
-
 	/**
 	 * Blocking/synchronous call to force the preferences file to be updated before accessing it
 	 */
@@ -142,4 +152,13 @@ public class UserSettings {
 			e.printStackTrace();
 		}
 	}
+
+	public static void viewPreferencesFile() {
+		try {
+			Runtime.getRuntime().exec("explorer.exe /select," + getPrefsFile().getPath());
+		} catch (IOException ex) {
+			ex.printStackTrace();
+		}
+	}
+
 }

@@ -32,6 +32,9 @@ public class ClearableTextField extends JTextField {
 	private int iconHorizontalThreshold;
 	private boolean showClearButton;
 
+	@Setter
+	private Runnable changeAction;
+
 	private static final JTextField DUMMY = new JTextField();
 	private static final Cursor BUTTON_CURSOR = new Cursor(Cursor.HAND_CURSOR);
 	private static final Cursor NORMAL_CURSOR = DUMMY.getCursor();
@@ -106,6 +109,12 @@ public class ClearableTextField extends JTextField {
 		repaint(iconHorizontalThreshold, 0, getWidth()-iconHorizontalThreshold, getHeight());
 	}
 
+	private void searchChanged() {
+		repaintIcon();
+		if (changeAction != null)
+			changeAction.run();
+	}
+
 	public void clear() {
 		setText("");
 		if (focusReceiver != null)
@@ -151,12 +160,11 @@ public class ClearableTextField extends JTextField {
 		}
 
 		@Override public void insertUpdate(DocumentEvent e) { changedUpdate(e); }
-
 		@Override public void removeUpdate(DocumentEvent e) { changedUpdate(e); }
 
 		@Override
 		public void changedUpdate(DocumentEvent e) {
-			repaintIcon();
+			searchChanged();
 		}
 	}
 

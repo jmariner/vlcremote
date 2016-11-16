@@ -1,105 +1,53 @@
-/*package com.jmariner.vlcremote.gui.playlist;
-
-import static com.jmariner.vlcremote.util.Constants.MAIN_PADDING;
-
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Container;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
-import java.util.Collections;
-import java.util.Vector;
-import java.util.stream.Collectors;
-
-import javax.swing.ImageIcon;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JTable;
-import javax.swing.JViewport;
-import javax.swing.ListSelectionModel;
-import javax.swing.RowFilter;
-import javax.swing.UIManager;
-import javax.swing.RowFilter.Entry;
-import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableModel;
-import javax.swing.table.TableRowSorter;
+package com.jmariner.vlcremote.gui.playlist;
 
 import com.jmariner.vlcremote.SongItem;
-import com.jmariner.vlcremote.gui.playlist.PlaylistPanel.PlaylistTable;
-import com.jmariner.vlcremote.gui.playlist.PlaylistPanel.PlaylistTable.PlaylistCellRenderer;
-import com.jmariner.vlcremote.util.Constants;
-import com.jmariner.vlcremote.util.SimpleIcon;
 
-class PlaylistTable extends JTable {
+import javax.swing.*;
+import javax.swing.table.TableModel;
+import javax.swing.table.TableRowSorter;
+import java.awt.*;
+
+public class PlaylistTable extends JTable {
+
+	private PlaylistPanel playlist;
 	
 	private TableRowSorter<TableModel> sorter;
 	private RowFilter<TableModel, Integer> filter;
-	
-	private boolean filterEnabled;
+
+	private PlaylistUtil util;
 			
-	public PlaylistTable() {
+	public PlaylistTable(PlaylistPanel playlist) {
 		super();
+
+		this.playlist = playlist;
+		this.util = new PlaylistUtil(playlist, this);
 		
 		sorter = new TableRowSorter<>();
-		filter = new RowFilter<TableModel, Integer>() {
-			@Override
-			public boolean include(Entry<? extends TableModel, ? extends Integer> entry) {
-				
-				if (!filterEnabled)
-					return true;
-				
-				String filterText = searchField.getText().trim();
-				String name = entry.getStringValue(0);
-				boolean show = true;
-				
-				if (showFavoritesButton.isSelected())
-					show = favorites.contains(name);
-				
-				if (!filterText.isEmpty())
-					show &= name.toUpperCase().contains(filterText.toUpperCase());
-				
-				return show;
-				
-			}
-		};
+		filter = util.getFilter();
 		
-		filterEnabled = false;
+		playlist.filterEnabled = false;
 		
 		this.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		this.setRowSelectionAllowed(true);
 		this.setColumnSelectionAllowed(true);
 		this.setDefaultEditor(SongItem.class, null);
-		this.setDefaultRenderer(SongItem.class, new PlaylistCellRenderer());
+		this.setDefaultRenderer(SongItem.class, util.getRenderer());
 	}
 	
 	protected void initPost() {
-		Vector<Vector<SongItem>> data = 
-				gui.getRemote().getStatus().getSongMap().values().stream()
-				.map(s -> new Vector<>(Collections.singletonList(s)))
-				.collect(Collectors.toCollection(Vector::new));
-		
-		Vector<String> headers = new Vector<>(Collections.singletonList(""));
-		
-		DefaultTableModel model = new DefaultTableModel(data, headers) {
-			@Override
-			public Class<?> getColumnClass(int c) {
-				return SongItem.class;
-			}
-		};
+
+		util.initPost();
+
+		TableModel model = util.getModel();
 		this.setModel(model);
 		sorter.setModel(model);
+
 		this.setTableHeader(null);
 		this.setRowSorter(sorter);
 	}
 	
 	protected void setFilterEnabled(boolean enabled) {
-		filterEnabled = enabled;
+		playlist.filterEnabled = enabled;
 		sorter.setRowFilter(filter);
 	}
 
@@ -118,7 +66,7 @@ class PlaylistTable extends JTable {
 		while (true) {
 			try {
 				if (getValueAt(++i, 0).equals(item)) {
-					table.setRowSelectionInterval(i, i);
+					setRowSelectionInterval(i, i);
 					return;
 				}
 			}
@@ -167,120 +115,17 @@ class PlaylistTable extends JTable {
 		
 		view.scrollRectToVisible(rect);
 	}
-	
-	private class PlaylistCellRenderer extends JPanel implements TableCellRenderer {
-		
-		private JLabel label, fav;
-		
-		private ImageIcon favIcon, addFavHoverIcon, addFavIcon;
-		
-		private int hoverRow;
-		private boolean hoverFav;
-		
-		public PlaylistCellRenderer() {
-			super(Constants.BORDER_LAYOUT);
-			
-			PlaylistTable table = PlaylistTable.this;
-			
-			int h = getRowHeight();
-			Color fg =  UIManager.getColor("Label.foreground");
-			
-			favIcon = SimpleIcon.FAVORITE.get(h, Color.PINK);
-			addFavHoverIcon = SimpleIcon.FAVORITE.get(h, fg);
-			addFavIcon = SimpleIcon.FAVORITE_EMPTY.get(h, fg);
-			
-			label = new JLabel();
-			label.setBorder(new EmptyBorder(0, MAIN_PADDING, 0, 0));
-			
-			fav = new JLabel();
-			label.setBorder(new EmptyBorder(0, 0, 0, MAIN_PADDING));
-			
-			fav.setVisible(false);
-			
-			this.add(label, BorderLayout.WEST);
-			this.add(fav, BorderLayout.EAST);
-			
-			// TODO setting this to true makes this and the table transparent so the frame background shows
-			//		no idea why, it doesn't make any sense. just setting to false to table background can show
-			this.setOpaque(false);
-			
-			table.addMouseMotionListener(new MouseMotionAdapter() {
-				public void mouseMoved(MouseEvent e) {
-					Point p = e.getPoint();
-					hoverRow = table.rowAtPoint(p);
-					int w = (int)(table.getRowHeight() * 1.5);
-					table.repaint(
-							table.getWidth() - w,
-							0,
-							w,
-							table.getHeight()
-						);
-					hoverFav = p.x > table.getWidth()-w;
-				}
-			});
-		}
-		
-		@Override
-		public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
-			
-			String s = v.toString();
-			
-			label.setText(s);
-			
-			boolean isFav = favorites.contains(s);
-			fav.setIcon(isFav ? favIcon : hoverFav ? addFavHoverIcon : addFavIcon);
-			fav.setVisible(r == hoverRow || isFav);
-			
-			if (sel) {
-				// TODO background colors don't do anything here, see previous todo
-				this.setBackground(SELECTED_BACKGROUND);
-				this.setForeground(SELECTED_FOREGROUND);
-				this.setBorder(SELECTED_BORDER);
-			}
-			else {
-				this.setBackground(DEFAULT_BACKGROUND);
-				this.setForeground(DEFAULT_FOREGROUND);
-				this.setBorder(DEFAULT_BORDER);
-			}
-			
-			return this;
-		}
-		
-		@Override
-		public void setForeground(Color c) {
-			if (label != null && fav != null) {
-				label.setForeground(c);
-				fav.setForeground(c);
-			}
-		}
-		
-		// DefaultTableCellRenderer states these should be overridden to no-ops
-		@Override public void revalidate() {}
-		@Override public void repaint(long t, int x, int y, int w, int h) {}
-		@Override public void repaint(Rectangle r) {}
-		@Override public void repaint() {}
-		@Override public void firePropertyChange(String p, boolean o, boolean n) {}
-		
-		*//**
-		 * Direct copy of {@link DefaultTableCellRenderer#firePropertyChange(String, Object, Object)}
-		 *//*
-		@SuppressWarnings("StringEquality")
-		@Override
-	    protected void firePropertyChange(String propertyName, Object oldValue, Object newValue) {
-	        // Strings get interned...
-	        if (propertyName=="text"
-	                || propertyName == "labelFor"
-	                || propertyName == "displayedMnemonic"
-	                || ((propertyName == "font" || propertyName == "foreground")
-	                    && oldValue != newValue
-	                    && getClientProperty(javax.swing.plaf.basic.BasicHTML.propertyKey) != null)) {
 
-	            super.firePropertyChange(propertyName, oldValue, newValue);
-	        }
-	    }
-		
-		// --END PlaylistCellRenderer--
+	/**
+	 * Utility method for {@link JTable#editCellAt(int, int)}
+	 */
+	public boolean editCellAt(int r) {
+		return super.editCellAt(r, 0);
 	}
-	
-	// --END PlaylistTable--
-}*/
+
+/*	@Override
+	public void removeEditor() {
+		if (getEditingRow() != playlist.hoverRow)
+			super.removeEditor();
+	}*/
+}

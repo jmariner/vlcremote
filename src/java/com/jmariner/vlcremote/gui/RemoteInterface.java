@@ -149,7 +149,6 @@ public class RemoteInterface extends JFrame {
 	private void loadSettings() {
 		menuBar.loadSettings();
 		loginPanel.loadSettings();
-		playlistPanel.loadSettings();
 	}
 
 	private void initActions() {
