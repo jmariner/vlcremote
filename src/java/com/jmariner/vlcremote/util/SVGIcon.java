@@ -29,20 +29,24 @@ public class SVGIcon extends ImageIcon {
 	private int size;
 	private Color color;
 
-	protected SVGIcon(String iconName, int size, Color color) throws URISyntaxException, IOException {
-		this(getDocument(iconName), size, color);
+	protected SVGIcon(Document doc, int size, Color color) {
+		this(doc, size, color, null);
 	}
 
-	private SVGIcon(Document doc, int size, Color color) {
-
+	private SVGIcon(Document doc, int size, Color color, Component parentComponent) {
 		this.doc = doc;
 		this.size = size;
 		this.color = color;
+		
+		if (parentComponent != null)
+			setParentComponent(parentComponent);
 
-		prepare();
+		update();
 	}
 
-	protected void prepare() {
+	private void update() {
+		
+		if (doc == null) return;
 
 		String colorString = String.format("#%02X%02X%02X", color.getRed(), color.getGreen(), color.getBlue());
 		doc.getDocumentElement().setAttribute("fill", colorString);
@@ -57,19 +61,28 @@ public class SVGIcon extends ImageIcon {
 		}
 	}
 
-	public SVGIcon resize(int size) {
-		return new SVGIcon(doc, size, color);
+	public void resize(int size) {
+		resizeAndRecolor(size, this.color);
 	}
 
-	public SVGIcon recolor(Color color) {
-		return new SVGIcon(doc, size, color);
+	public void recolor(Color color) {
+		resizeAndRecolor(this.size, color);
 	}
 
-	public SVGIcon resizeAndRecolor(int size, Color color) {
-		return new SVGIcon(doc, size, color);
+	public void resizeAndRecolor(int size, Color color) {
+		this.size = size;
+		this.color = color;
+		update();
+	}
+	
+	public void setParentComponent(Component c) {
+		c.addPropertyChangeListener("foreground", e -> {
+			SVGIcon.this.color = (Color) e.getNewValue();
+			update();
+		});
 	}
 
-	private static Document getDocument(String iconName) {
+	protected static Document getDocument(String iconName) {
 		try {
 			String uri = Main.class.getResource(String.format("icons/%s.svg", iconName)).toURI().toString();
 			return FACTORY.createDocument(uri);

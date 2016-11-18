@@ -4,6 +4,8 @@ import java.awt.*;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
+import org.w3c.dom.Document;
+
 @SuppressWarnings("unused")
 public enum SimpleIcon {
 	NEXT,
@@ -25,7 +27,7 @@ public enum SimpleIcon {
 	JUMP_TO,
 	CLEAR_FILTER;
 
-	private SVGIcon icon;
+	private Document iconDoc;
 
 	public static class Defaults {
 		public static final int SIZE = 24;
@@ -35,40 +37,31 @@ public enum SimpleIcon {
 	}
 
 	SimpleIcon() {
-		try {
-			icon = new SVGIcon(
-					name().toLowerCase(),
-					Defaults.SIZE,
-					Defaults.COLOR
-			);
-		} catch (URISyntaxException | IOException e) {
-			throw new RuntimeException(e);
-		}
+		this.iconDoc = SVGIcon.getDocument(name().toLowerCase());
 	}
 
 	public SVGIcon get() {
-		return icon;
+		return new SVGIcon(iconDoc, Defaults.SIZE, Defaults.COLOR);
 	}
 
 	public SVGIcon get(double sizeScale) {
-		int size = (int) (sizeScale * Defaults.SIZE);
-		return icon.resize(size);
+		return get(sizeScale, Defaults.COLOR);
 	}
 
 	public SVGIcon get(int newSize) {
-		return icon.resize(newSize);
+		return get(newSize, Defaults.COLOR);
 	}
 
 	public SVGIcon get(Color color) {
-		return icon.recolor(color);
+		return get(Defaults.SIZE, color);
 	}
 
 	public SVGIcon get(double sizeScale, Color color) {
 		int size = (int) (sizeScale * Defaults.SIZE);
-		return icon.resizeAndRecolor(size, color);
+		return get(size, color);
 	}
 
 	public SVGIcon get(int newSize, Color color) {
-		return icon.resizeAndRecolor(newSize, color);
+		return new SVGIcon(iconDoc, newSize, color);
 	}
 }

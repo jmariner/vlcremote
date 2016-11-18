@@ -53,22 +53,27 @@ public class PlaylistTable extends JTable {
 		sorter.setRowFilter(filter);
 	}
 
-	protected boolean itemExists(SongItem item) {
-		int i = 0;
+	/**
+	 * Gets the table row of the <code>SongItem</code>. This is affected by filters.
+	 * @param item the item to find
+	 * @return row where <code>item</code> is located or <code>-1</code> if it isn't found
+	 */
+	protected int getRowOf(SongItem item) {
+		int r = -1;
 		while (true) {
 			try {
-				if (getValueAt(i++, 0).equals(item)) return true;
+				if (getValueAt(++r, 0).equals(item)) return r;
 			}
-			catch (IndexOutOfBoundsException e) { return false; }
+			catch (IndexOutOfBoundsException e) { return -1; }
 		}
 	}
 	
 	protected void setSelected(SongItem item) {
-		int i = -1;
+		int r = -1;
 		while (true) {
 			try {
-				if (getValueAt(++i, 0).equals(item)) {
-					setRowSelectionInterval(i, i);
+				if (getValueAt(++r, 0).equals(item)) {
+					setRowSelectionInterval(r, r);
 					return;
 				}
 			}
@@ -82,13 +87,14 @@ public class PlaylistTable extends JTable {
 	}
 	
 	protected boolean isSelectionVisible() {
+		return isRowVisible(getSelectedRow());
+	}
+	
+	protected boolean isRowVisible(int row) {
 		Container c = getParent();
-		int r = getSelectedRow();
-		
-		return  (r > -1) &&
+		return  (row > -1) &&
 				(c instanceof JViewport) &&
-				c.contains(getCellRect(r, 0, true).getLocation());
-		
+				c.contains(getCellRect(row, 0, true).getLocation());
 	}
 	
 	protected void scrollToSelected() {
@@ -97,30 +103,33 @@ public class PlaylistTable extends JTable {
 		if (selected == -1 || isSelectionVisible()) return;
 		
 		// calculate possible spacing before and after selection
+/*		int cellsAround = 4; cellsAround++;
 		int last = getRowCount()-1;
-		int before = selected < 5 ? selected : 5;
-		int after = selected > last-5 ? last-selected : 5;
+		int before = selected < cellsAround ? selected : cellsAround;
+		int after = selected > last-cellsAround ? last-selected : cellsAround;
 		
 		int h = getRowHeight();
 		before *= h;
-		after *= h;
-		
-		// create spacing before and after selection so it is somewhat center
+		after *= h;*/
 		Rectangle rect = getCellRect(selected, 0, true);
-		rect.setLocation(rect.x, rect.y - before);
-		rect.setSize(rect.width, before + rect.height + after);
-		
-		// account for the viewport position
 		JViewport view = (JViewport) getParent();
 		Point pt = view.getViewPosition();
+
+		int around = (view.getHeight()-rect.height)/2;
+		
+		// create spacing before and after selection so it is somewhat center
+		rect.setLocation(rect.x, rect.y - around);
+		rect.setSize(rect.width, around + rect.height + around);
+		
+		// account for the viewport position
 		rect.setLocation(rect.x - pt.x, rect.y - pt.y);
 		
 		view.scrollRectToVisible(rect);
 	}
 	
 	protected void repaintHoverArea() {
-		int w = getWidth() / 5;
-		int x = getWidth() - w;
-		this.repaint(x, 0, w, getHeight());
+		Rectangle r = util.getCellPanel().getHoverPanel().getBounds();
+		this.paintImmediately(r.x, 0, r.width, getHeight());
+	//	this.repaint(r.x, 0, r.width, getHeight());
 	}
 }

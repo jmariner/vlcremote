@@ -153,21 +153,22 @@ public class PlaylistUtil {
 			
 			if (sel) {
 				this.setBackground(SELECTED_BACKGROUND);
-				this.setForeground(SELECTED_FOREGROUND);
+				label.setForeground(SELECTED_FOREGROUND);
 				this.setBorder(SELECTED_BORDER);
 			}
 			else {
 				this.setBackground(DEFAULT_BACKGROUND);
-				this.setForeground(DEFAULT_FOREGROUND);
+				label.setForeground(DEFAULT_FOREGROUND);
 				this.setBorder(DEFAULT_BORDER);
 			}
 			
-			boolean hover = r == playlist.hoverRow;
+			boolean hover = sel;
+		//	boolean hover = r == playlist.hoverRow;
 			favButton.setVisible(hover);
 			
 			boolean cur = playlist.currentSong.getId() == v.getId();
 			playButton.setVisible(hover || cur);
-			playButton.setIcon(playIcon.recolor(cur ? SELECTED_FOREGROUND : foreground));
+			playIcon.recolor(cur ? SELECTED_FOREGROUND : foreground);
 			
 			return this;
 		}

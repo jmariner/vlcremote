@@ -126,7 +126,6 @@ public class MainMenuBar extends JMenuBar {
 
 		JRadioButtonMenuItem curEqButton = eqPresetButtons.get(status.getEqPreset());
 		if (!curEqButton.isSelected()) {
-		//	eqPresetGroup.clearSelection();
 			eqPresetGroup.setSelected(curEqButton.getModel(), true);
 		}
 
@@ -147,20 +146,6 @@ public class MainMenuBar extends JMenuBar {
 			gui.handleException(new IllegalArgumentException("Input must be a number"));
 	}
 	
-	private void setEqPreset(AWTEvent e) {
-		if (eqPresets != null) {
-			String input = (String) JOptionPane.showInputDialog(gui, 
-					"Select a preset", "Equalizer Preset",
-					JOptionPane.QUESTION_MESSAGE, null,
-					eqPresets.toArray(new String[eqPresets.size()]),
-					eqPresets.get(0)
-			);
-			int presetId = eqPresets.indexOf(input);
-			gui.getRemote().sendCommand(Command.SET_EQ_ENABLED, "1");
-			gui.getRemote().sendCommand(Command.SET_EQ_PRESET, ""+presetId);
-		}
-	}
-
 	protected void loadSettings() {
 		instantPauseEnabled = UserSettings.getBoolean("instantPause", false);
 		instantPause.setSelected(instantPauseEnabled);

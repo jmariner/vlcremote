@@ -4,14 +4,19 @@ import com.jmariner.vlcremote.SongItem;
 import com.jmariner.vlcremote.gui.ClearableTextField;
 import com.jmariner.vlcremote.gui.RemoteInterface;
 import com.jmariner.vlcremote.util.GuiUtils;
+import com.jmariner.vlcremote.util.SVGIcon;
 import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
 
 import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionEvent;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
@@ -24,9 +29,11 @@ public class PlaylistPanel extends JPanel {
 	private RemoteInterface gui;
 
 	private PlaylistTable table;
-
-
+	private JScrollPane scrollPane;
+	
 	private JButton playSelectedButton, favoriteButton, viewCurrentButton, clearFiltersButton;
+	
+	private SVGIcon addFavIcon, removeFavIcon;
 
 	protected SongItem currentSong;
 	protected ClearableTextField searchField;
@@ -40,6 +47,9 @@ public class PlaylistPanel extends JPanel {
 		super(new BorderLayout(0, 10));
 		this.gui = gui;
 
+		addFavIcon = SimpleIcon.FAVORITE.get();
+		removeFavIcon = SimpleIcon.FAVORITE_EMPTY.get();
+
 		init();
 		initListeners();
 		
@@ -50,7 +60,7 @@ public class PlaylistPanel extends JPanel {
 	private void init() {
 		table = new PlaylistTable(this);
 
-		JScrollPane scrollPane = new JScrollPane(
+		scrollPane = new JScrollPane(
 				table,
 				ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS,
 				ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
@@ -70,7 +80,7 @@ public class PlaylistPanel extends JPanel {
 		
 		playSelectedButton = new JButton(SimpleIcon.PLAY_OUTLINE.get());
 		playSelectedButton.setToolTipText("Play the selected song");
-		favoriteButton = new JButton("Favorite Selected");
+		favoriteButton = new JButton(addFavIcon);
 		favoriteButton.setToolTipText("Save selected song as favorite");
 		viewCurrentButton = new JButton(SimpleIcon.JUMP_TO.get());
 		viewCurrentButton.setToolTipText("View the currently playing song in the list");
@@ -98,8 +108,6 @@ public class PlaylistPanel extends JPanel {
 		this.add(playlistTop, BorderLayout.NORTH);
 		this.add(scrollPane, BorderLayout.CENTER);
 		this.add(bottom, BorderLayout.SOUTH);
-
-		gui.setPlaylistAreaShowing(false);
 	}
 	
 	private void initListeners() {
@@ -114,14 +122,20 @@ public class PlaylistPanel extends JPanel {
 		PlaylistListener listener = new PlaylistListener();
 		table.addMouseListener(listener);
 		table.addMouseMotionListener(listener);
-		searchField.setChangeAction(this::searchChanged);
+		searchField.setChangeAction(this::filterChanged);
+		
+		scrollPane.getViewport().addChangeListener(listener);
+		
+		this.addComponentListener(new ComponentAdapter() {
+			public void componentResized(ComponentEvent e) {
+				scrollToCurrent(null);
+			}
+		});
 
 	}
 	
 	public void initPost() {
-
 		this.songMap = gui.getRemote().getStatus().getSongMap();
-
 		table.initPost();
 	}
 	
@@ -141,7 +155,7 @@ public class PlaylistPanel extends JPanel {
 	private void toggleShowFavorites(AWTEvent e) {
 		boolean sel = showFavoritesButton.isSelected();
 		showFavoritesButton.setToolTipText(sel ? "Show all" : "Show favorites");
-		table.setFilterEnabled(true);
+		filterChanged();
 	}
 	
 	private void favoriteSelected(ActionEvent e) {
@@ -151,24 +165,26 @@ public class PlaylistPanel extends JPanel {
 		else
 			UserSettings.addFavorite(cur);
 
-		table.setFilterEnabled(true);
+		filterChanged();
 		selectionChanged(null);
 	}
 
 	protected void selectionChanged(ListSelectionEvent e) {
 		SongItem song = table.getSelected();
-		favoriteButton.setEnabled(song != null);
-		if (song != null) {
+		boolean exists = song != null;
+		favoriteButton.setEnabled(exists);
+		playSelectedButton.setEnabled(exists);
+		if (exists) {
 			boolean fav = UserSettings.isFavorite(song.toString());
 			favoriteButton.setActionCommand(fav ? "remove" : "add");
-			favoriteButton.setText((fav ? "Unf":"F") + "avorite Selected");
+			favoriteButton.setIcon(fav ? removeFavIcon : addFavIcon);
 			favoriteButton.setToolTipText(fav ? "Remove selected song from favorites" : "Save selected song to favorites");
 		}
 	}
 
-	private void searchChanged() {
+	private void filterChanged() {
 		table.setFilterEnabled(true);
-		viewCurrentButton.setEnabled(table.itemExists(currentSong));
+		viewCurrentButton.setEnabled(table.getRowOf(currentSong) > -1);
 	}
 	
 	public void update(VLCStatus status) {
@@ -189,7 +205,9 @@ public class PlaylistPanel extends JPanel {
 		table.scrollToSelected();
 	}
 
-	private class PlaylistListener extends MouseAdapter {
+	private class PlaylistListener extends MouseAdapter implements ChangeListener {
+		
+		private Point pos;
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
@@ -201,14 +219,29 @@ public class PlaylistPanel extends JPanel {
 
 		@Override
 		public void mouseMoved(MouseEvent e) {
-			hoverRow = table.rowAtPoint(e.getPoint());
-			table.repaintHoverArea();
+/*			if (e != null)
+				pos = e.getLocationOnScreen();
+			
+			Point p = new Point(pos);
+			SwingUtilities.convertPointFromScreen(p, table);
+			
+			int prev = hoverRow;
+			hoverRow = table.rowAtPoint(p);
+			
+			if (hoverRow != prev)
+				table.repaintHoverArea();*/
 		}
 		
 		@Override
 		public void mouseExited(MouseEvent e) {
-			hoverRow = -2; // -2 since JTable's row getters return -1 for none
-			table.repaintHoverArea();
+/*			hoverRow = -2; // -2 since JTable's row getters return -1 for none
+			table.repaintHoverArea();*/
+		}
+
+		@Override
+		public void stateChanged(ChangeEvent e) {
+			if (pos != null)
+				mouseMoved(null);
 		}
 	}
 

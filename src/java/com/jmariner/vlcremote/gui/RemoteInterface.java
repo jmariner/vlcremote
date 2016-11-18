@@ -293,9 +293,11 @@ public class RemoteInterface extends JFrame {
 	}
 
 	private void startUpdateLoop() {
-		updateLoop = Executors.newScheduledThreadPool(1).scheduleAtFixedRate(
-				() -> updateInterface(remote.getNewStatus()),
-				0, UserSettings.getInt("updateDelay", 1000), TimeUnit.MILLISECONDS
+		updateLoop = Executors.newScheduledThreadPool(1)
+				.scheduleAtFixedRate(() -> {
+					updateInterface(remote.getNewStatus());
+					heartbeat();
+				}, 0, UserSettings.getInt("updateDelay", 1000), TimeUnit.MILLISECONDS
 		);
 	}
 
@@ -303,6 +305,10 @@ public class RemoteInterface extends JFrame {
 		if (!updateLoop.isCancelled())
 			updateLoop.cancel(true);
 		startUpdateLoop();
+	}
+	
+	private void heartbeat() {
+		
 	}
 
 	public void clearFocus() {

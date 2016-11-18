@@ -6,6 +6,8 @@ table: wait for a way to get song metadata through vlc; only things we have curr
 
 reconnect after timeout and continue update loop
 
+*** add a heartbeat for the update loop to recognize when something went wrong so it can be restarted
+
 maybe make SVG icons take on color of container?
 
 table is not showing selection border until i click one of the items, no matter what. figure it out cause it's annoying

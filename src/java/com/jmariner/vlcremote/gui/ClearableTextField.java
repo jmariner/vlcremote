@@ -54,7 +54,7 @@ public class ClearableTextField extends JTextField {
 	public ClearableTextField(String text, int columns) {
 		super(text, columns);
 
-		this.clearIcon = null;
+		this.clearIcon = SimpleIcon.CLEAR.get();
 		this.focusReceiver = null;
 		this.onClear = null;
 
@@ -89,7 +89,11 @@ public class ClearableTextField extends JTextField {
 
 	private void updateIcon(EventObject e) {
 		int size = getHeight() - defaultInsets.bottom - defaultInsets.top;
-		this.clearIcon = SimpleIcon.CLEAR.get(size, getForeground());
+		Color color = mouseX > iconHorizontalThreshold ? 
+				ColorUtil.lightenColor(getForeground(), -.25f) :
+				getForeground();
+				
+		this.clearIcon.resizeAndRecolor(size, color);
 		repaintIcon();
 	}
 
@@ -138,18 +142,9 @@ public class ClearableTextField extends JTextField {
 	private class MainListener extends MouseAdapter implements DocumentListener {
 		@Override
 		public void mouseMoved(MouseEvent e) {
-			Point p = e.getPoint();
-			mouseX = p.x;
+			mouseX = e.getPoint().x;
 			updateCursor();
-			
-			if (showClearButton() && mouseX > iconHorizontalThreshold) {
-				
-				Color darker = ColorUtil.lightenColor(getForeground(), -.25f);
-				clearIcon = clearIcon.recolor(darker);
-				repaintIcon();
-			}
-			else
-				updateIcon(null);
+			updateIcon(null);
 		}
 
 		@Override
