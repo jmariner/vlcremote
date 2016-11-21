@@ -25,9 +25,12 @@ public class VLCStatus {
 
 	private List<String> eqPresets;
 	private Map<Integer, SongItem> songMap;
+	private LinkedHashMap<String, String> libraryFolders;
 
 	@Getter(AccessLevel.NONE)
-	private boolean playlistExists;
+	private boolean playlistExists, libraryExists;
+
+	private static final JsonParser PARSER = new JsonParser();
 
 	public VLCStatus() {
 		eqPresets = new ArrayList<>();
@@ -57,6 +60,7 @@ public class VLCStatus {
 
 		playlistExists = playlist.size() > 0;
 
+		songMap.clear();
 		if (playlistExists) {
 			playlist.forEach(s -> {
 				int id = Integer.parseInt(s.get("id"));
@@ -71,7 +75,8 @@ public class VLCStatus {
 	}
 
 	public void loadMediaLibrary(String json) {
-
+		libraryFolders = parseLibraryJson(json);
+		libraryExists = libraryFolders != null && libraryFolders.size() > 0;
 	}
 
 	public SongItem getCurrentSong() {
@@ -79,6 +84,12 @@ public class VLCStatus {
 	}
 
 	public boolean playlistExists() { return playlistExists; }
+
+	public boolean libraryExists() { return libraryExists; }
+
+	public String getCurrentAlbum() {
+		return songMap.values().iterator().next().getAlbum();
+	}
 
 	private void loadMap(Map<String, String> vlcStatus) {
 		this.map = vlcStatus;
@@ -112,7 +123,7 @@ public class VLCStatus {
 
 		Map<String, String> out = new HashMap<>();
 
-		JsonElement el = new JsonParser().parse(json);
+		JsonElement el = PARSER.parse(json);
 
 		if (el.isJsonObject()) {
 			JsonObject j = el.getAsJsonObject();
@@ -153,7 +164,7 @@ public class VLCStatus {
 
 		List<String> out = new ArrayList<>();
 
-		JsonElement el = new JsonParser().parse(json);
+		JsonElement el = PARSER.parse(json);
 
 		if (el.isJsonObject()) {
 			JsonElement eq = el.getAsJsonObject().get("equalizer");
@@ -174,7 +185,7 @@ public class VLCStatus {
 	private static List<Map<String, String>> parsePlaylistJson(String json) {
 		List<Map<String, String>> out = new ArrayList<>();
 
-		JsonElement root = new JsonParser().parse(json);
+		JsonElement root = PARSER.parse(json);
 		assert root.isJsonObject();
 
 		JsonElement playlist = root.getAsJsonObject().get("children");
@@ -199,8 +210,26 @@ public class VLCStatus {
 		return out;
 	}
 
-	private static Object parseLibraryJson(String json) {
-		return null;
+	private static LinkedHashMap<String, String> parseLibraryJson(String json) {
+		LinkedHashMap<String, String> out = new LinkedHashMap<>();
+
+		JsonElement root = PARSER.parse(json);
+		assert root.isJsonObject();
+		assert root.getAsJsonObject().get("name").getAsString().equals("Media Library");
+
+		JsonElement libraries = root.getAsJsonObject().get("children");
+		if (libraries == null) return null;
+		assert libraries.isJsonArray();
+
+		libraries.getAsJsonArray().forEach(e -> {
+			JsonObject o = e.getAsJsonObject();
+			out.put(
+					o.get("name").getAsString(),
+					o.get("uri").getAsString().replaceFirst("directory", "file")
+			);
+		});
+
+		return out;
 	}
 
 	public enum State {

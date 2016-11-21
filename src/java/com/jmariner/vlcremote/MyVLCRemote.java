@@ -64,6 +64,13 @@ public class MyVLCRemote {
 		if (testConnection()) {
 			getNewStatus();
 			updatePlaylist();
+			if (!status.playlistExists()) {
+				status.loadMediaLibrary(connect(LIBRARY_REQUEST));
+				if (status.libraryExists()) {
+					String first = status.getLibraryFolders().keySet().iterator().next();
+					switchAlbum(first);
+				}
+			}
 		}
 	}
 
@@ -204,12 +211,7 @@ public class MyVLCRemote {
 	
 	public void setMuted(boolean m) {
 		muted = m;
-		if (m) {
-			gainControl.setValue(convertVolume(0));
-		}
-		else {
-			gainControl.setValue(convertVolume(playbackVolume));
-		}
+		gainControl.setValue(convertVolume(m ? playbackVolume : 0));
 	}
 
 	public void incrementVolume(int percentToChange) {
@@ -267,8 +269,6 @@ public class MyVLCRemote {
 
 	private void updatePlaylist() {
 		status.loadPlaylist(connect(PLAYLIST_REQUEST));
-		if (!status.playlistExists())
-			status.loadPlaylist(connect(LIBRARY_REQUEST));
 	}
 
 	private void updateStatus() {
@@ -278,6 +278,13 @@ public class MyVLCRemote {
 	public VLCStatus getNewStatus() {
 		updateStatus();
 		return status;
+	}
+
+	public VLCStatus switchAlbum(String newAlbum) {
+		String album = status.getLibraryFolders().get(newAlbum);
+		connect(STATUS_REQUEST + "?command=pl_empty");
+		connect(STATUS_REQUEST + "?command=in_play&input=" + album);
+		return getNewStatus();
 	}
 
 	public VLCStatus sendCommand(Command cmd) {
