@@ -82,5 +82,11 @@ public class GuiUtils {
 		});
 		return out;
 	}
+	
+	public static JPanel flowLayout(JComponent c, int align) {
+		JPanel out = new JPanel(new FlowLayout(align, 0, 0));
+		out.add(c);
+		return out;
+	}
 
 }

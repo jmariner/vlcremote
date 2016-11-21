@@ -21,6 +21,8 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Vector;
+import java.util.stream.Collectors;
 
 import static com.jmariner.vlcremote.util.Constants.*;
 
@@ -30,8 +32,9 @@ public class PlaylistPanel extends JPanel {
 
 	private PlaylistTable table;
 	private JScrollPane scrollPane;
-	
+
 	private JButton playSelectedButton, favoriteButton, viewCurrentButton, clearFiltersButton;
+	private JComboBox<String> albumSelectionBox;
 	
 	private SVGIcon addFavIcon, removeFavIcon;
 
@@ -44,7 +47,6 @@ public class PlaylistPanel extends JPanel {
 	protected Map<Integer, SongItem> songMap;
 
 	public PlaylistPanel(RemoteInterface gui) {
-		super(new BorderLayout(0, 10));
 		this.gui = gui;
 
 		addFavIcon = SimpleIcon.FAVORITE.get();
@@ -58,6 +60,7 @@ public class PlaylistPanel extends JPanel {
 	}
 	
 	private void init() {
+		
 		table = new PlaylistTable(this);
 
 		scrollPane = new JScrollPane(
@@ -66,16 +69,26 @@ public class PlaylistPanel extends JPanel {
 				ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
 		);
 
-		JLabel title = new JLabel("Playlist");
-		title.setFont(FONT.deriveFont(18f).deriveFont(UNDERLINE));
+		JLabel title = new JLabel("Playlist:");
+		title.setFont(FONT.deriveFont(24f).deriveFont(UNDERLINE));
 		title.setHorizontalAlignment(SwingConstants.CENTER);
-
+		
+		albumSelectionBox = new JComboBox<String>();
+		albumSelectionBox.setVisible(false);
+		albumSelectionBox.setFont(FONT);
+		
+		JPanel topLeftPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, MAIN_PADDING, 0));
+		topLeftPanel.add(title);
+		topLeftPanel.add(albumSelectionBox);
+		
 		searchField = new ClearableTextField(18);
 		searchField.setOnClear(gui::clearFocus);
 
-		showFavoritesButton = new JToggleButton(SimpleIcon.FAVORITE_EMPTY.get());
-		showFavoritesButton.setSelectedIcon(
-				SimpleIcon.FAVORITE.get(SimpleIcon.Defaults.SELECTED_COLOR));
+		SVGIcon emptyFav = SimpleIcon.FAVORITE_EMPTY.get();
+		SVGIcon filledFav = SimpleIcon.FAVORITE.get(SimpleIcon.Defaults.SELECTED_COLOR);
+		
+		showFavoritesButton = new JToggleButton(emptyFav);
+		showFavoritesButton.setSelectedIcon(filledFav);
 		showFavoritesButton.setToolTipText("Show favorites");
 		
 		playSelectedButton = new JButton(SimpleIcon.PLAY_OUTLINE.get());
@@ -88,16 +101,16 @@ public class PlaylistPanel extends JPanel {
 		clearFiltersButton.setToolTipText("Clear the search and favorite filters");
 		
 		Dimension dim = GuiUtils.squareDim(SimpleIcon.Defaults.BUTTON_SIZE);
-		Arrays.asList(showFavoritesButton, playSelectedButton, viewCurrentButton, clearFiltersButton)
-		.forEach(b -> b.setPreferredSize(dim));
+		Arrays.asList(showFavoritesButton, favoriteButton, playSelectedButton, viewCurrentButton, clearFiltersButton)
+			.forEach(b -> b.setPreferredSize(dim));
 
-		JPanel playlistSearch = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-		playlistSearch.add(new JLabel("Search"));
+		JPanel playlistSearch = new JPanel(new FlowLayout(FlowLayout.CENTER, MAIN_PADDING, 0));
+		playlistSearch.add(new JLabel("Search:"));
 		playlistSearch.add(searchField);
 		playlistSearch.add(showFavoritesButton);
 
-		JPanel playlistTop = new JPanel(new BorderLayout());
-		playlistTop.add(title, BorderLayout.WEST);
+		JPanel playlistTop = new JPanel(new BorderLayout(0, 0));
+		playlistTop.add(topLeftPanel, BorderLayout.WEST);
 		playlistTop.add(playlistSearch, BorderLayout.EAST);
 
 		JPanel bottom = GuiUtils.horizontalGridOf(
@@ -105,6 +118,7 @@ public class PlaylistPanel extends JPanel {
 
 		this.setBorder(MAIN_PADDING_BORDER);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, PLAYLIST_HEIGHT));
+		this.setLayout(new BorderLayout(0, MAIN_PADDING));
 		this.add(playlistTop, BorderLayout.NORTH);
 		this.add(scrollPane, BorderLayout.CENTER);
 		this.add(bottom, BorderLayout.SOUTH);
@@ -117,6 +131,7 @@ public class PlaylistPanel extends JPanel {
 		favoriteButton.addActionListener(this::favoriteSelected);
 		viewCurrentButton.addActionListener(this::scrollToCurrent);
 		clearFiltersButton.addActionListener(this::clearFilters);
+		albumSelectionBox.addActionListener(this::switchAlbum);
 		table.getSelectionModel().addListSelectionListener(this::selectionChanged);
 
 		PlaylistListener listener = new PlaylistListener();
@@ -135,8 +150,37 @@ public class PlaylistPanel extends JPanel {
 	}
 	
 	public void initPost() {
-		this.songMap = gui.getRemote().getStatus().getSongMap();
+		VLCStatus status = gui.getRemote().getStatus();
+		this.songMap = status.getSongMap();
+		
+		if (status.libraryExists()) {
+			albumSelectionBox.setModel(new DefaultComboBoxModel<>(
+					status.getLibraryFolders().keySet()
+					.stream().collect(Collectors.toCollection(Vector::new))
+			));
+			albumSelectionBox.setVisible(true);
+		}
+		
 		table.initPost();
+	}
+	
+	public void update(VLCStatus status) {
+		currentSong = status.getCurrentSong();
+		if (table.getSelected() == null ||!table.getSelected().equals(currentSong))
+			scrollToCurrent(null);
+		table.repaintHoverArea();
+		viewCurrentButton.setEnabled(table.getRowOf(currentSong) > -1);
+		albumSelectionBox.setSelectedItem(status.getCurrentAlbum());
+	}
+	
+	private void switchAlbum(AWTEvent e) {
+		String album = (String) albumSelectionBox.getSelectedItem();
+		if (!album.equals(gui.getRemote().getStatus().getCurrentAlbum())) {
+			VLCStatus status = gui.getRemote().switchAlbum(album);
+			this.songMap = status.getSongMap();
+			update(status);
+			table.initPost();
+		}
 	}
 	
 	private void clearFilters(AWTEvent e) {
@@ -185,13 +229,6 @@ public class PlaylistPanel extends JPanel {
 	private void filterChanged() {
 		table.setFilterEnabled(true);
 		viewCurrentButton.setEnabled(table.getRowOf(currentSong) > -1);
-	}
-	
-	public void update(VLCStatus status) {
-		currentSong = status.getCurrentSong();
-		if (table.getSelected() == null || !table.getSelected().equals(currentSong)) {
-			scrollToCurrent(null);
-		}
 	}
 	
 	private void switchSongToSelected(AWTEvent e) {

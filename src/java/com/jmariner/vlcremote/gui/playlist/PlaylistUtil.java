@@ -54,9 +54,6 @@ public class PlaylistUtil {
 		this.filter = new Filter();
 		this.renderer = new Renderer();
 		this.cellPanel = new CellPanel();
-	}
-
-	protected void initPost() {
 		this.model = new Model();
 	}
 
@@ -166,7 +163,7 @@ public class PlaylistUtil {
 		//	boolean hover = r == playlist.hoverRow;
 			favButton.setVisible(hover);
 			
-			boolean cur = playlist.currentSong.getId() == v.getId();
+			boolean cur = playlist.currentSong != null && playlist.currentSong.getId() == v.getId();
 			playButton.setVisible(hover || cur);
 			playIcon.recolor(cur ? SELECTED_FOREGROUND : foreground);
 			
@@ -220,11 +217,11 @@ public class PlaylistUtil {
 		}
 	}
 
-	private class Model extends AbstractTableModel {
+	protected class Model extends AbstractTableModel {
 
 		private List<SongItem> songs;
-
-		public Model() {
+		
+		protected void update() {
 			songs = new ArrayList<>(playlist.songMap.values());
 		}
 

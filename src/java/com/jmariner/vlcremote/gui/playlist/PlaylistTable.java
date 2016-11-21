@@ -6,6 +6,7 @@ import javax.swing.*;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
+import java.util.Collections;
 
 public class PlaylistTable extends JTable {
 
@@ -38,11 +39,11 @@ public class PlaylistTable extends JTable {
 	
 	protected void initPost() {
 
-		util.initPost();
-
-		TableModel model = util.getModel();
+		PlaylistUtil.Model model = util.getModel();
+		model.update();
 		this.setModel(model);
 		sorter.setModel(model);
+		sorter.setSortKeys(Collections.singletonList(new RowSorter.SortKey(0, SortOrder.ASCENDING)));
 
 		this.setTableHeader(null);
 		this.setRowSorter(sorter);
@@ -102,15 +103,6 @@ public class PlaylistTable extends JTable {
 
 		if (selected == -1 || isSelectionVisible()) return;
 		
-		// calculate possible spacing before and after selection
-/*		int cellsAround = 4; cellsAround++;
-		int last = getRowCount()-1;
-		int before = selected < cellsAround ? selected : cellsAround;
-		int after = selected > last-cellsAround ? last-selected : cellsAround;
-		
-		int h = getRowHeight();
-		before *= h;
-		after *= h;*/
 		Rectangle rect = getCellRect(selected, 0, true);
 		JViewport view = (JViewport) getParent();
 		Point pt = view.getViewPosition();
@@ -129,7 +121,7 @@ public class PlaylistTable extends JTable {
 	
 	protected void repaintHoverArea() {
 		Rectangle r = util.getCellPanel().getHoverPanel().getBounds();
-		this.paintImmediately(r.x, 0, r.width, getHeight());
-	//	this.repaint(r.x, 0, r.width, getHeight());
+	//	this.paintImmediately(r.x, 0, r.width, getHeight());
+		this.repaint(r.x, 0, r.width, getHeight());
 	}
 }

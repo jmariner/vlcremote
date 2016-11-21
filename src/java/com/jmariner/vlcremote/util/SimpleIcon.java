@@ -30,8 +30,9 @@ public enum SimpleIcon {
 	private Document iconDoc;
 
 	public static class Defaults {
+		public static final double BUTTON_ICON_RATIO = 1.25;
 		public static final int SIZE = 24;
-		public static final int BUTTON_SIZE = (int) (SIZE * 1.25);
+		public static final int BUTTON_SIZE = (int) (SIZE * BUTTON_ICON_RATIO);
 		public static final Color COLOR = Color.BLACK;
 		public static final Color SELECTED_COLOR = Color.WHITE;
 	}

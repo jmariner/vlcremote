@@ -15,6 +15,9 @@ import org.w3c.dom.Document;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -77,9 +80,20 @@ public class SVGIcon extends ImageIcon {
 	
 	public void setParentComponent(Component c) {
 		c.addPropertyChangeListener("foreground", e -> {
-			SVGIcon.this.color = (Color) e.getNewValue();
-			update();
+			recolor((Color) e.getNewValue());
 		});
+		
+		if (c.getWidth() > 0) resizeForComponent(c);
+		
+		c.addComponentListener(new ComponentAdapter() {
+			public void componentResized(ComponentEvent e) {
+				resizeForComponent(c);
+			}
+		});
+	}
+	
+	private void resizeForComponent(Component c) {
+		resize((int) (c.getWidth() / SimpleIcon.Defaults.BUTTON_ICON_RATIO));
 	}
 
 	protected static Document getDocument(String iconName) {

@@ -64,12 +64,11 @@ public class MyVLCRemote {
 		if (testConnection()) {
 			getNewStatus();
 			updatePlaylist();
-			if (!status.playlistExists()) {
-				status.loadMediaLibrary(connect(LIBRARY_REQUEST));
-				if (status.libraryExists()) {
-					String first = status.getLibraryFolders().keySet().iterator().next();
-					switchAlbum(first);
-				}
+			updateLibrary();
+			if (status.libraryExists() && !status.playlistExists()) {
+				String first = status.getLibraryFolders().keySet().iterator().next();
+				switchAlbum(first);
+				updatePlaylist();
 			}
 		}
 	}
@@ -99,8 +98,14 @@ public class MyVLCRemote {
 		playStream(1000);
 	}
 
-	/** Adapted from http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/examples/PlaySoundStream.java
-	 *  Explained at http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/
+	/** Adapted from 
+	 * 		<a href="http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/examples/PlaySoundStream.java">
+	 * 			PlaySoundStream.java
+	 * 		</a><br>
+	 *  Explained at
+	 *  	<a href="http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/">
+	 *  		http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/
+	 *  	</a>
 	 */
 	private void streamSampledAudio(String urlString)  {
 
@@ -266,6 +271,10 @@ public class MyVLCRemote {
 		}
 		return null;
 	}
+	
+	private void updateLibrary() {
+		status.loadMediaLibrary(connect(LIBRARY_REQUEST));
+	}
 
 	private void updatePlaylist() {
 		status.loadPlaylist(connect(PLAYLIST_REQUEST));
@@ -284,6 +293,7 @@ public class MyVLCRemote {
 		String album = status.getLibraryFolders().get(newAlbum);
 		connect(STATUS_REQUEST + "?command=pl_empty");
 		connect(STATUS_REQUEST + "?command=in_play&input=" + album);
+		updatePlaylist();
 		return getNewStatus();
 	}
 
