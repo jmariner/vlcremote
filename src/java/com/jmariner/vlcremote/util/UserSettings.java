@@ -86,6 +86,10 @@ public class UserSettings {
 		return getRoot().node(node);
 	}
 	
+	public static void remove(String key) {
+		getRoot().remove(key);
+	}
+	
 	public static String get(String key, String def) {
 		return getRoot().get(key, def);
 	}

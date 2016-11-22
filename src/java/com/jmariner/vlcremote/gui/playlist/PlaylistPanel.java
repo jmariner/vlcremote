@@ -9,6 +9,8 @@ import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
 
+import lombok.extern.slf4j.Slf4j;
+
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 
 import static com.jmariner.vlcremote.util.Constants.*;
 
+@Slf4j
 public class PlaylistPanel extends JPanel {
 
 	private RemoteInterface gui;
@@ -51,6 +54,8 @@ public class PlaylistPanel extends JPanel {
 
 		addFavIcon = SimpleIcon.FAVORITE.get();
 		removeFavIcon = SimpleIcon.FAVORITE_EMPTY.get();
+		
+		this.hoverRow = -2;
 
 		init();
 		initListeners();
@@ -256,7 +261,7 @@ public class PlaylistPanel extends JPanel {
 
 		@Override
 		public void mouseMoved(MouseEvent e) {
-/*			if (e != null)
+			if (e != null)
 				pos = e.getLocationOnScreen();
 			
 			Point p = new Point(pos);
@@ -265,14 +270,28 @@ public class PlaylistPanel extends JPanel {
 			int prev = hoverRow;
 			hoverRow = table.rowAtPoint(p);
 			
-			if (hoverRow != prev)
-				table.repaintHoverArea();*/
+			if (hoverRow != prev) {
+				
+				table.setInteractiveRow(hoverRow);
+				
+				log.info("moved from row " + prev + " to row " + hoverRow);
+			}
 		}
 		
 		@Override
 		public void mouseExited(MouseEvent e) {
-/*			hoverRow = -2; // -2 since JTable's row getters return -1 for none
-			table.repaintHoverArea();*/
+			Point p = new Point(pos);
+			JViewport view = table.getViewport();
+			SwingUtilities.convertPointFromScreen(p, view);
+			if (!view.getBounds().contains(p)) {
+				
+				table.disableInteractiveRow();
+				
+				hoverRow = -2; // -2 since JTable's row getters return -1 for none
+				pos = null;
+				
+				log.info("exited!");
+			}
 		}
 
 		@Override

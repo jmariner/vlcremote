@@ -64,7 +64,7 @@ public class PlaylistUtil {
 		
 		@Getter(AccessLevel.PROTECTED)
 		private JPanel hoverPanel;
-		private JLabel favButton, playButton;
+		private JButton favButton, playButton;
 
 		private SVGIcon favIcon, addFavIcon, removeFavIcon, playIcon;
 
@@ -97,13 +97,18 @@ public class PlaylistUtil {
 			leftPanel.add(fav);
 			leftPanel.add(label);
 			
-			favButton = new JLabel(addFavIcon);
-			playButton = new JLabel(playIcon);
+			favButton = new JButton(addFavIcon);
+			playButton = new JButton(playIcon);
 			playButton.setToolTipText("Play this song");
 			
-			Arrays.asList(favButton, playButton).forEach(l -> {
-				l.setVisible(false);
-				l.setCursor(new Cursor(Cursor.HAND_CURSOR));
+			Arrays.asList(favButton, playButton).forEach(b -> {
+				b.setPreferredSize(GuiUtils.squareDim(size));
+				b.setOpaque(false);
+				b.setBorderPainted(false);
+				b.setFocusPainted(false);
+				b.setContentAreaFilled(false);
+				b.setVisible(false);
+				b.setCursor(new Cursor(Cursor.HAND_CURSOR));
 			});
 			
 			hoverPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, PADDING, 0));
@@ -159,8 +164,8 @@ public class PlaylistUtil {
 				this.setBorder(DEFAULT_BORDER);
 			}
 			
-			boolean hover = sel;
 		//	boolean hover = r == playlist.hoverRow;
+			boolean hover = editing;
 			favButton.setVisible(hover);
 			
 			boolean cur = playlist.currentSong != null && playlist.currentSong.getId() == v.getId();
@@ -172,9 +177,9 @@ public class PlaylistUtil {
 
 		// DefaultTableCellRenderer states these should be overridden to no-ops
 		@Override public void revalidate() {}
-		@Override public void repaint(long t, int x, int y, int w, int h) {}
-		@Override public void repaint(Rectangle r) {}
-		@Override public void repaint() {}
+//		@Override public void repaint(long t, int x, int y, int w, int h) {}
+//		@Override public void repaint(Rectangle r) {}
+//		@Override public void repaint() {}
 		@Override public void firePropertyChange(String p, boolean o, boolean n) {}
 	}
 

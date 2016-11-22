@@ -2,6 +2,8 @@ package com.jmariner.vlcremote.gui.playlist;
 
 import com.jmariner.vlcremote.SongItem;
 
+import lombok.Getter;
+
 import javax.swing.*;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
@@ -16,6 +18,10 @@ public class PlaylistTable extends JTable {
 	private RowFilter<TableModel, Integer> filter;
 
 	private PlaylistUtil util;
+	
+	private JPanel interactiveRowComponent;
+	@Getter
+	private int interactiveRow;
 			
 	public PlaylistTable(PlaylistPanel playlist) {
 		super();
@@ -30,10 +36,13 @@ public class PlaylistTable extends JTable {
 		
 		playlist.filterEnabled = false;
 		
+		this.interactiveRow = -1;
+		
 		this.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		this.setRowSelectionAllowed(true);
 		this.setColumnSelectionAllowed(true);
 		this.setDefaultEditor(SongItem.class, null);
+	//	this.setDefaultEditor(SongItem.class, util.getRenderer());
 		this.setDefaultRenderer(SongItem.class, util.getRenderer());
 	}
 	
@@ -119,9 +128,51 @@ public class PlaylistTable extends JTable {
 		view.scrollRectToVisible(rect);
 	}
 	
+	protected JViewport getViewport() {
+		return (JViewport) getParent();
+	}
+	
+	protected void repaintViewArea() {
+		JViewport view = getViewport();
+		this.repaint(0, view.getViewPosition().y, view.getWidth(), view.getHeight());
+	}
+	
 	protected void repaintHoverArea() {
-		Rectangle r = util.getCellPanel().getHoverPanel().getBounds();
+		Rectangle hover = util.getCellPanel().getHoverPanel().getBounds();
+		JViewport view = getViewport();
 	//	this.paintImmediately(r.x, 0, r.width, getHeight());
-		this.repaint(r.x, 0, r.width, getHeight());
+		this.repaint(hover.x, view.getViewPosition().y, hover.width, view.getHeight());
+	}
+	
+	protected void setInteractiveRow(int r) {
+		if (r > -1 && r < getRowCount()) {
+			
+			interactiveRowComponent = util.getCellPanel()
+					.update((SongItem) getValueAt(r, 0), isRowSelected(r), r, true);
+			
+			interactiveRowComponent.setBounds(getCellRect(r, 0, false));
+			
+			if (!interactiveRowEnabled())
+				this.add(interactiveRowComponent);
+			
+			interactiveRowComponent.validate();
+			interactiveRowComponent.repaint();
+			this.interactiveRow = r;
+			
+		}
+	}
+	
+	protected void disableInteractiveRow() {
+		if (interactiveRowEnabled()) {
+			this.remove(interactiveRowComponent);
+
+			this.repaint(getCellRect(interactiveRow, 0, false));
+			
+			this.interactiveRow = -1;
+		}
+	}
+	
+	protected boolean interactiveRowEnabled() {
+		return interactiveRow > -1;
 	}
 }

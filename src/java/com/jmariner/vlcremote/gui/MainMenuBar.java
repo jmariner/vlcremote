@@ -28,7 +28,7 @@ public class MainMenuBar extends JMenuBar {
 	private JCheckBoxMenuItem debugBorders;
 	private JMenuItem restartStream, gotoPreferences,
 						updateDelayInput, setEqPreset,
-						editKeybinds;
+						editKeybinds, resetPassSave;
 	
 	private List<String> eqPresets;
 	private Map<String,  JRadioButtonMenuItem> eqPresetButtons;
@@ -56,6 +56,7 @@ public class MainMenuBar extends JMenuBar {
 		instantPause = new JCheckBoxMenuItem("Enable instant pause");
 		setEqPreset = new JMenu("Equalizer");
 		editKeybinds = new JMenuItem("Edit Keybinds...");
+		resetPassSave = new JMenuItem("Reset saved password status");
 
 		JMenu tools = new JMenu("Tools");
 		tools.setMnemonic(VK_T);
@@ -66,6 +67,7 @@ public class MainMenuBar extends JMenuBar {
 		JMenu options = new JMenu("Options");
 		options.setMnemonic(VK_O);
 		options.add(updateDelayInput);
+		options.add(resetPassSave);
 		options.add(debugBorders);
 		options.add(instantPause);
 		options.add(setEqPreset);
@@ -115,6 +117,7 @@ public class MainMenuBar extends JMenuBar {
 		gotoPreferences.addActionListener(e -> UserSettings.viewPreferencesFile());
 		updateDelayInput.addActionListener(this::setUpdateDelay);
 		editKeybinds.addActionListener(gui::editKeybindsPopup);
+		resetPassSave.addActionListener(this::resetPass);
 	}
 	
 	protected void update(VLCStatus status) {
@@ -144,6 +147,16 @@ public class MainMenuBar extends JMenuBar {
 		}
 		else
 			gui.handleException(new IllegalArgumentException("Input must be a number"));
+	}
+	
+	private void resetPass(AWTEvent e) {
+		UserSettings.remove("httpPass");
+		UserSettings.remove("saveHttpPass");
+		UserSettings.remove("autoconnect");
+		JOptionPane.showMessageDialog(gui,
+				"Saved password status has been reset.",
+				"Password reset",
+				INFORMATION_MESSAGE);
 	}
 	
 	protected void loadSettings() {
