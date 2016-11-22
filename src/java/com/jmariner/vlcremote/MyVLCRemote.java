@@ -68,8 +68,124 @@ public class MyVLCRemote {
 			if (status.libraryExists() && !status.playlistExists()) {
 				String first = status.getLibraryFolders().keySet().iterator().next();
 				switchAlbum(first);
-				updatePlaylist();
 			}
+		}
+	}
+
+	public boolean testConnection() {
+		return connect("") != null;
+	}
+
+	private String connect(String location) {
+
+		try {
+
+			HttpResponse<String> response =
+					Unirest.get(baseURL + location)
+					.basicAuth("", httpPassword)
+					.asString();
+
+			int status = response.getStatus();
+			if (status == 401) {
+				String pass = new String(new char[httpPassword.length()]).replace("\0", "*");
+				String msg = String.format("HTTP 401 Exception: Invalid credentials. (pass: %s)", StringUtils.isBlank(pass) ? "<none>" : pass);
+				throw new ConnectException(msg);
+			}
+			if (status == 404) {
+				throw new ConnectException("HTTP 404 Not Found: " + baseURL + location);
+			}
+
+			return response.getBody();
+		}
+		catch (ConnectException e) {
+			log.error(e.getMessage());
+			if (exceptionHandler != null)
+				exceptionHandler.accept(e);
+		}
+		catch (UnirestException e) {
+			if (e.getCause() instanceof UnknownHostException)
+				log.error("Unknown host: " + baseURL);
+			else if (e.getCause() instanceof ConnectTimeoutException)
+				log.error(e.getCause().getMessage());
+			else
+				e.printStackTrace();
+
+			if (exceptionHandler != null)
+				exceptionHandler.accept(e.getCause());
+		}
+		return null;
+	}
+	
+	private void updateLibrary() {
+		status.loadMediaLibrary(connect(LIBRARY_REQUEST));
+	}
+
+	private void updatePlaylist() {
+		status.loadPlaylist(connect(PLAYLIST_REQUEST));
+	}
+
+	private void updateStatus() {
+		status.loadStatus(connect(STATUS_REQUEST));
+	}
+
+	public VLCStatus getNewStatus() {
+		updateStatus();
+		return status;
+	}
+
+	public VLCStatus switchAlbum(String newAlbum) {
+		String album = status.getLibraryFolders().get(newAlbum);
+
+		connect(STATUS_REQUEST + "?command=pl_empty");
+		connect(STATUS_REQUEST + "?command=in_play&input=" + album);
+
+//		if (status.getAlbumCache().containsKey(newAlbum))
+//			status.loadAlbumFromCache(newAlbum);
+//		else {
+			try {
+				do {
+					Thread.sleep(500);
+					updatePlaylist();
+				} while (!status.playlistExists());
+			}
+			catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
+//		}
+
+		return getNewStatus();
+	}
+
+	public VLCStatus sendCommand(Command cmd) {
+		return sendCommand(cmd, null);
+	}
+
+	public VLCStatus sendCommand(Command cmd, String val) {
+
+		String append = val == null ? "" : String.format("&%s=%s", cmd.getParamName(), encodeUrlParam(val));
+		connect(STATUS_REQUEST + "?command=" + cmd + append);
+		return getNewStatus();
+	}
+
+	public VLCStatus setSourceVolume(double percentVolume) {
+		if (percentVolume < 0) percentVolume = 0;
+		if (percentVolume > 1.25) percentVolume = 1.25;
+
+		return sendCommand(Command.SET_VOLUME, ""+(percentVolume * 256));
+	}
+
+	public VLCStatus switchSong(int playlistID) {
+		if (!playingStream)
+			playStream();
+		return sendCommand(Command.PLAY_ITEM, ""+playlistID);
+	}
+
+	private static String encodeUrlParam(String s) {
+		try {
+			return URLEncoder.encode(s, "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
+			return null;
 		}
 	}
 
@@ -98,7 +214,7 @@ public class MyVLCRemote {
 		playStream(1000);
 	}
 
-	/** Adapted from 
+	/** Adapted from
 	 * 		<a href="http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/examples/PlaySoundStream.java">
 	 * 			PlaySoundStream.java
 	 * 		</a><br>
@@ -142,7 +258,7 @@ public class MyVLCRemote {
 			// Open the line through which we'll play the streaming audio.
 			playbackLine = (SourceDataLine) AudioSystem.getLine(info);
 			playbackLine.open(format);
-			
+
 			gainControl = (FloatControl) playbackLine.getControl(FloatControl.Type.MASTER_GAIN);
 
 			// Allocate a buffer for reading from the input stream and writing
@@ -209,11 +325,11 @@ public class MyVLCRemote {
 			}
 		}
 	}
-	
+
 	public void toggleMute() {
 		setMuted(!muted);
 	}
-	
+
 	public void setMuted(boolean m) {
 		muted = m;
 		gainControl.setValue(convertVolume(m ? playbackVolume : 0));
@@ -222,112 +338,10 @@ public class MyVLCRemote {
 	public void incrementVolume(int percentToChange) {
 		playbackVolume += percentToChange;
 	}
-	
+
 	private static float convertVolume(int percentVolume) {
 		double percentVol = percentVolume / 100.0;
 		return (float) (Math.log(percentVol) / Math.log(10.0) * 20.0);
-	}
-
-	public boolean testConnection() {
-		return connect("") != null;
-	}
-
-	private String connect(String location) {
-
-		try {
-
-			HttpResponse<String> response =
-					Unirest.get(baseURL + location)
-					.basicAuth("", httpPassword)
-					.asString();
-
-			int status = response.getStatus();
-			if (status == 401) {
-				String pass = new String(new char[httpPassword.length()]).replace("\0", "*");
-				String msg = String.format("HTTP 401 Exception: Invalid credentials. (pass: %s)", StringUtils.isBlank(pass) ? "<none>" : pass);
-				throw new ConnectException(msg);
-			}
-			if (status == 404) {
-				throw new ConnectException("HTTP 404 Not Found: " + baseURL + location);
-			}
-
-			return response.getBody();
-		}
-		catch (ConnectException e) {
-			log.error(e.getMessage());
-			if (exceptionHandler != null)
-				exceptionHandler.accept(e);
-		}
-		catch (UnirestException e) {
-			if (e.getCause() instanceof UnknownHostException)
-				log.error("Unknown host: " + baseURL);
-			else if (e.getCause() instanceof ConnectTimeoutException)
-				log.error(e.getCause().getMessage());
-			else
-				e.printStackTrace();
-
-			if (exceptionHandler != null)
-				exceptionHandler.accept(e.getCause());
-		}
-		return null;
-	}
-	
-	private void updateLibrary() {
-		status.loadMediaLibrary(connect(LIBRARY_REQUEST));
-	}
-
-	private void updatePlaylist() {
-		status.loadPlaylist(connect(PLAYLIST_REQUEST));
-	}
-
-	private void updateStatus() {
-		status.loadStatus(connect(STATUS_REQUEST));
-	}
-
-	public VLCStatus getNewStatus() {
-		updateStatus();
-		return status;
-	}
-
-	public VLCStatus switchAlbum(String newAlbum) {
-		String album = status.getLibraryFolders().get(newAlbum);
-		connect(STATUS_REQUEST + "?command=pl_empty");
-		connect(STATUS_REQUEST + "?command=in_play&input=" + album);
-		updatePlaylist();
-		return getNewStatus();
-	}
-
-	public VLCStatus sendCommand(Command cmd) {
-		return sendCommand(cmd, null);
-	}
-
-	public VLCStatus sendCommand(Command cmd, String val) {
-
-		String append = val == null ? "" : String.format("&%s=%s", cmd.getParamName(), encodeUrlParam(val));
-		connect(STATUS_REQUEST + "?command=" + cmd + append);
-		return getNewStatus();
-	}
-
-	public VLCStatus setSourceVolume(double percentVolume) {
-		if (percentVolume < 0) percentVolume = 0;
-		if (percentVolume > 1.25) percentVolume = 1.25;
-
-		return sendCommand(Command.SET_VOLUME, ""+(percentVolume * 256));
-	}
-
-	public VLCStatus switchSong(int playlistID) {
-		if (!playingStream)
-			playStream();
-		return sendCommand(Command.PLAY_ITEM, ""+playlistID);
-	}
-
-	private static String encodeUrlParam(String s) {
-		try {
-			return URLEncoder.encode(s, "UTF-8");
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-			return null;
-		}
 	}
 
 	@Getter

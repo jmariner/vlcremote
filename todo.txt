@@ -8,9 +8,11 @@ reconnect after timeout and continue update loop
 
 *** add a heartbeat for the update loop to recognize when something went wrong so it can be restarted
 
-maybe make SVG icons take on color of container?
-
 table is not showing selection border until i click one of the items, no matter what. figure it out cause it's annoying
 
-***
-switch to using VLC's media library function, where multiple folders can be added and swapped between. need to rewrite playlist parser to account for this, as well as keep track of each different playlist/folder using a list or map
+*** upgrade to file list:
+	download list of songs - these files have their "date modified" set to the upload date
+	parse the dates modified and save to master file
+	set metadata (title, artist, etc), changing date modified
+	use "touch -d date" to reset the date modified to the upload date
+	use VLC's SDs or something to get that date into VLC's playlist.json

@@ -26,6 +26,7 @@ public class VLCStatus {
 	private List<String> eqPresets;
 	private Map<Integer, SongItem> songMap;
 	private LinkedHashMap<String, String> libraryFolders;
+	private LinkedHashMap<String, Map<Integer, SongItem>> albumCache;
 
 	@Getter(AccessLevel.NONE)
 	private boolean playlistExists, libraryExists;
@@ -35,6 +36,8 @@ public class VLCStatus {
 	public VLCStatus() {
 		eqPresets = new ArrayList<>();
 		songMap = new HashMap<>();
+		libraryFolders = new LinkedHashMap<>();
+		albumCache = new LinkedHashMap<>();
 	}
 
 	private String get(String key) {
@@ -71,6 +74,8 @@ public class VLCStatus {
 				));
 
 			});
+
+			albumCache.put(getCurrentAlbum(), new HashMap<>(songMap));
 		}
 	}
 
@@ -89,6 +94,10 @@ public class VLCStatus {
 
 	public String getCurrentAlbum() {
 		return songMap.values().iterator().next().getAlbum();
+	}
+
+	public void loadAlbumFromCache(String albumName) {
+		songMap = albumCache.get(albumName);
 	}
 
 	private void loadMap(Map<String, String> vlcStatus) {
@@ -190,6 +199,12 @@ public class VLCStatus {
 
 		JsonElement playlist = root.getAsJsonObject().get("children");
 		assert playlist.isJsonArray();
+
+		if (playlist.getAsJsonArray().size() == 1 &&
+				playlist.getAsJsonArray().get(0).getAsJsonObject().get("type").getAsString().equals("leaf")) {
+
+			return new ArrayList<>();
+		}
 
 		playlist.getAsJsonArray().forEach(i -> {
 			Map<String, String> item = new HashMap<>();
