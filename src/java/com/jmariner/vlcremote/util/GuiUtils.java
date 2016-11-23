@@ -55,7 +55,7 @@ public class GuiUtils {
 	public static String formatTime(int seconds) {
 		return DateTimeFormatter.ofPattern(seconds < 3600 ? "mm:ss" : "HH:mm:ss")
 				.withZone(ZoneId.of("UTC"))
-				.format(Instant.ofEpochMilli((long)(seconds*1000)));
+				.format(Instant.ofEpochMilli(seconds*1000));
 	}
 
 	public static Dimension squareDim(int size) {

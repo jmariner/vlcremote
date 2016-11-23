@@ -209,10 +209,12 @@ public class MyVLCRemote {
 		playbackLine.stop();
 	}
 
-	public void restartStream() {
+	public void restartStream(int delay) {
 		stopStream();
-		playStream(1000);
+		playStream(delay);
 	}
+	
+	public void restartStream() { restartStream(1000); }
 
 	/** Adapted from
 	 * 		<a href="http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/examples/PlaySoundStream.java">

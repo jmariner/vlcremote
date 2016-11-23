@@ -13,7 +13,6 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.LineBorder;
 import javax.swing.table.AbstractTableModel;
-import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
 import java.awt.*;
@@ -99,7 +98,6 @@ public class PlaylistUtil {
 			
 			favButton = new JButton(addFavIcon);
 			playButton = new JButton(playIcon);
-			playButton.setToolTipText("Play this song");
 			
 			Arrays.asList(favButton, playButton).forEach(b -> {
 				b.setPreferredSize(GuiUtils.squareDim(size));
@@ -119,12 +117,29 @@ public class PlaylistUtil {
 			
 			Arrays.asList(fav, favButton, playButton)
 				.forEach(l -> l.setPreferredSize(GuiUtils.squareDim(size)));
+			
+			initListeners();
 
 			this.putClientProperty("backgroundTexture", new Object());
 			this.add(leftPanel, BorderLayout.WEST);
 			this.add(hoverPanel, BorderLayout.EAST);
 
 			this.setOpaque(true);
+		}
+		
+		private void initListeners() {
+			favButton.addActionListener(e -> {
+				String[] params = e.getActionCommand().split(" ", 3);
+				int r = Integer.parseInt(params[0]);
+				playlist.favoriteSong(params[1], params[2]);
+				table.setInteractiveRow(r);
+			});
+			
+			playButton.addActionListener(e -> {
+				int id = Integer.parseInt(e.getActionCommand());
+				if (id > -1)
+					playlist.switchSong(id);
+			});
 		}
 
 		public JPanel update(PlaylistTable table, int r, boolean editing) {
@@ -156,6 +171,16 @@ public class PlaylistUtil {
 			boolean isFav = UserSettings.isFavorite(s);
 			fav.setIcon(isFav ? favIcon : null);
 			favButton.setIcon(isFav ? removeFavIcon : addFavIcon);
+			favButton.setToolTipText(isFav ? "Remove favorite" : "Add favorite");
+						
+			boolean cur = playlist.currentSong != null && playlist.currentSong.getId() == v.getId();
+			favButton.setVisible(editing);
+			playButton.setVisible(editing || cur);
+			favButton.setActionCommand(r + (isFav ? " remove " : " add ") + s);
+			
+			playIcon.recolor(cur ? SELECTED_FOREGROUND : foreground);
+			playButton.setToolTipText(cur ? "Current Song" : "Play this song");
+			playButton.setActionCommand("" + (cur ? -1 : v.getId()));
 			
 			if (sel) {
 				this.setBackground(SELECTED_BACKGROUND);
@@ -168,38 +193,17 @@ public class PlaylistUtil {
 				this.setBorder(DEFAULT_BORDER);
 			}
 			
-		//	boolean hover = r == playlist.hoverRow;
-			favButton.setVisible(editing);
-			
-			boolean cur = playlist.currentSong != null && playlist.currentSong.getId() == v.getId();
-			playButton.setVisible(editing || cur);
-			playIcon.recolor(cur ? SELECTED_FOREGROUND : foreground);
-			
+
 			return this;
 		}
-
-		// DefaultTableCellRenderer states these should be overridden to no-ops
-//		@Override public void revalidate() {}
-//		@Override public void repaint(long t, int x, int y, int w, int h) {}
-//		@Override public void repaint(Rectangle r) {}
-//		@Override public void repaint() {}
-		@Override public void firePropertyChange(String p, boolean o, boolean n) {}
 	}
 
-	private class Renderer extends AbstractCellEditor implements TableCellEditor, TableCellRenderer {
+	private class Renderer implements TableCellRenderer {
 
 		@Override
 		public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
 			return cellPanel.update((SongItem) v, s, r, false);
 		}
-
-		@Override
-		public Component getTableCellEditorComponent(JTable t, Object v, boolean s, int r, int c) {
-			return cellPanel.update((SongItem) v, s, r, true);
-		}
-
-		@Override
-		public Object getCellEditorValue() { return null; }
 
 	}
 

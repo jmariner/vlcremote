@@ -22,10 +22,7 @@ public class MainMenuBar extends JMenuBar {
 
 	private RemoteInterface gui;
 
-	private boolean instantPauseEnabled;
-
-	private JCheckBoxMenuItem instantPause;
-	private JCheckBoxMenuItem debugBorders;
+	private JCheckBoxMenuItem instantPause, debugBorders, restartOnChange;
 	private JMenuItem restartStream, gotoPreferences,
 						updateDelayInput, setEqPreset,
 						editKeybinds, resetPassSave;
@@ -50,12 +47,13 @@ public class MainMenuBar extends JMenuBar {
 	private void init() {
 
 		restartStream = new JMenuItem("Restart stream");
-		gotoPreferences = new JMenuItem("Show Preferences File");
+		gotoPreferences = new JMenuItem("Show preferences file");
 		debugBorders = new JCheckBoxMenuItem("Show debug borders");
 		updateDelayInput = new JMenuItem("Set update delay");
+		restartOnChange = new JCheckBoxMenuItem("Restart stream on track change");
 		instantPause = new JCheckBoxMenuItem("Enable instant pause");
 		setEqPreset = new JMenu("Equalizer");
-		editKeybinds = new JMenuItem("Edit Keybinds...");
+		editKeybinds = new JMenuItem("Edit keybinds...");
 		resetPassSave = new JMenuItem("Reset saved password status");
 
 		JMenu tools = new JMenu("Tools");
@@ -70,6 +68,7 @@ public class MainMenuBar extends JMenuBar {
 		options.add(resetPassSave);
 		options.add(debugBorders);
 		options.add(instantPause);
+		options.add(restartOnChange);
 		options.add(setEqPreset);
 		
 		setEqPreset.setEnabled(false);
@@ -105,12 +104,22 @@ public class MainMenuBar extends JMenuBar {
 		restartStream.setEnabled(true);
 		editKeybinds.setEnabled(true);
 	}
+	
+	protected void loadSettings() {
+		instantPause.setSelected(UserSettings.getBoolean("instantPause", false));
+		restartOnChange.setSelected(UserSettings.getBoolean("restartOnTrackChange", false));
+	}
 
 	private void initListeners() {
 		debugBorders.addActionListener(e -> GuiUtils.debugBorderComponents(gui, ((JCheckBoxMenuItem)e.getSource()).isSelected()));
+		restartOnChange.addActionListener(e -> {
+			boolean b = ((JCheckBoxMenuItem)e.getSource()).isSelected();
+			UserSettings.putBoolean("restartOnTrackChange", b);
+		});
+		
 		instantPause.addActionListener(e -> {
-			instantPauseEnabled = ((JCheckBoxMenuItem)e.getSource()).isSelected();
-			UserSettings.putBoolean("instantPause", instantPauseEnabled);
+			boolean b = ((JCheckBoxMenuItem)e.getSource()).isSelected();
+			UserSettings.putBoolean("instantPause", b);
 		});
 
 		restartStream.addActionListener(e -> gui.getAction("restartStream").run());
@@ -157,11 +166,6 @@ public class MainMenuBar extends JMenuBar {
 				"Saved password status has been reset.",
 				"Password reset",
 				INFORMATION_MESSAGE);
-	}
-	
-	protected void loadSettings() {
-		instantPauseEnabled = UserSettings.getBoolean("instantPause", false);
-		instantPause.setSelected(instantPauseEnabled);
 	}
 
 }

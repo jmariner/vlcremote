@@ -2,17 +2,20 @@ handle the OS's repeated keypresses for local events (globals dont repeat)
 
 option to only shuffle/loop through filtered song list (may not be easy, will need to wait for song to change normally and then switch the song again to the next song in the filtered list, or to a random one from that list if shuffle is on. maybe find a way to handle it from VLC?)
 
-table: wait for a way to get song metadata through vlc; only things we have currently are title, artist, and duration. album is containing folder which is a bit hacky)
-
 reconnect after timeout and continue update loop
 
 *** add a heartbeat for the update loop to recognize when something went wrong so it can be restarted
 
 table is not showing selection border until i click one of the items, no matter what. figure it out cause it's annoying
 
+sort FilePreferences alphabetically... this would require changing the interal Properties object
+	in FilePreferences which is used to read/write to file
+
 *** upgrade to file list:
-	download list of songs - these files have their "date modified" set to the upload date
-	parse the dates modified and save to master file
-	set metadata (title, artist, etc), changing date modified
-	use "touch -d date" to reset the date modified to the upload date
-	use VLC's SDs or something to get that date into VLC's playlist.json
+	download the youtube data and parse for date modified for each
+	set date modified to upload date
+	use luafilesystem fs.attributes to get mtime
+	
+	decide how to handle this second sorting option...
+		actually use table headers and multiple columns?
+		don't bother showing the date and add a combobox of sort options?

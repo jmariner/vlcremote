@@ -5,8 +5,6 @@
 package com.jmariner.vlcremote.util;
 
 import com.jmariner.vlcremote.Main;
-import com.jmariner.vlcremote.gui.RemoteInterface;
-
 import java.awt.*;
 import java.io.IOException;
 

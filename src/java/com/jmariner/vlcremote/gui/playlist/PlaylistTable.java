@@ -3,7 +3,6 @@ package com.jmariner.vlcremote.gui.playlist;
 import com.jmariner.vlcremote.SongItem;
 
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import javax.swing.table.TableModel;
@@ -11,7 +10,6 @@ import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.util.Collections;
 
-@Slf4j
 public class PlaylistTable extends JTable {
 
 	private PlaylistPanel playlist;
@@ -55,11 +53,6 @@ public class PlaylistTable extends JTable {
 		this.setModel(model);
 		sorter.setModel(model);
 		sorter.setSortKeys(Collections.singletonList(new RowSorter.SortKey(0, SortOrder.ASCENDING)));
-
-		interactiveRowComponent = new JPanel();
-		interactiveRowComponent.setVisible(false);
-		interactiveRowComponent.setBounds(getCellRect(0, 0, false));
-		this.add(interactiveRowComponent);
 
 		this.setTableHeader(null);
 		this.setRowSorter(sorter);
@@ -141,37 +134,31 @@ public class PlaylistTable extends JTable {
 	
 	protected void setInteractiveRow(int r) {
 		if (r > -1 && r < getRowCount()) {
-
-		//	disableInteractiveRow();
+				
+			disableInteractiveRow();
 			
 			interactiveRowComponent = util.getCellPanel().update(this, r, true);
-
-			this.repaint(getCellRect(interactiveRow, 0, false));
-			this.remove(interactiveRowComponent);
+			
 			interactiveRowComponent.setBounds(getCellRect(r, 0, false));
 			this.add(interactiveRowComponent);
-			interactiveRowComponent.setVisible(true);
-			this.revalidate();
 			interactiveRowComponent.revalidate();
 			interactiveRowComponent.repaint();
 
 			this.interactiveRow = r;
-			
+						
 		}
 	}
 	
 	protected void disableInteractiveRow() {
 		if (interactiveRowEnabled()) {
-			this.remove(interactiveRowComponent);
-
 			this.repaint(getCellRect(interactiveRow, 0, false));
-
+			this.remove(interactiveRowComponent);
 			this.interactiveRowComponent = null;
 			this.interactiveRow = -1;
 		}
 	}
 	
 	protected boolean interactiveRowEnabled() {
-		return interactiveRowComponent.isVisible();
+		return interactiveRowComponent != null;
 	}
 }

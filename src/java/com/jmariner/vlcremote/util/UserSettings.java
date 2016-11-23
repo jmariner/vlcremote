@@ -2,7 +2,6 @@ package com.jmariner.vlcremote.util;
 
 import com.jmariner.vlcremote.Main;
 import lombok.extern.slf4j.Slf4j;
-import net.infotrek.util.prefs.FilePreferences;
 import net.infotrek.util.prefs.FilePreferencesFactory;
 
 import java.io.File;
@@ -11,6 +10,7 @@ import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Properties;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
@@ -22,7 +22,7 @@ public class UserSettings {
 	public static String fileName = "vlcremote.prefs";
 	
 	private static Preferences initPreferences() {
-	    System.setProperty("java.util.prefs.PreferencesFactory", FilePreferencesFactory.class.getName());
+	    System.setProperty("java.util.prefs.PreferencesFactory", SortedFilePreferencesFactory.class.getName());
 	    
 	    try {
 
@@ -36,7 +36,7 @@ public class UserSettings {
 					Files.copy(in, Paths.get(prefsFileLocation));
 			}
 
-			System.setProperty(FilePreferencesFactory.SYSTEM_PROPERTY_FILE, prefsFileLocation);
+			System.setProperty(SortedFilePreferencesFactory.SYSTEM_PROPERTY_FILE, prefsFileLocation);
 
 		}
 		catch (URISyntaxException | IOException e) {

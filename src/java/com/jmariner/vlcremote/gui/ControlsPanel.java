@@ -133,6 +133,10 @@ public class ControlsPanel extends JPanel {
 		
 		playPauseButton.addActionListener(this::playPausePressed);
 		vlcControlButtons.forEach(b -> b.addActionListener(this::controlButtonPressed));
+		Arrays.asList(nextButton, prevButton).forEach(b -> b.addActionListener(e -> {
+			if (UserSettings.getBoolean("restartOnTrackChange", false))
+				gui.getRemote().restartStream(1000);
+		}));
 		
 		VolumeSliderMouseListener listener = new VolumeSliderMouseListener();
 		volumeSlider.addMouseListener(listener);

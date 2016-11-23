@@ -189,12 +189,12 @@ public class KeybindEditor extends JDialog {
 			localKeybinds.remove(getSelectedId());
 	}
 
+	@SuppressWarnings({"RedundantCast", "cast"})
 	private String getSelectedId() {
 		int r = table.getSelectedRow();
 		if (r == -1)
 			return "";
 		else
-			//noinspection RedundantCast
 			return keybindIdMap.get((String) table.getValueAt(r, 0));
 	}
 	
@@ -267,8 +267,8 @@ public class KeybindEditor extends JDialog {
 			((DefaultTableCellRenderer)renderer)
 					.setHorizontalAlignment(SwingConstants.CENTER);
 
-			// without "Redundant Cast" it's "Suspicious call to LinkedHashMap.get" to I can't win here
-			@SuppressWarnings("RedundantCast")
+			// without "Redundant Cast" it's "Suspicious call to LinkedHashMap.get" so I can't win here
+			@SuppressWarnings({ "RedundantCast", "cast" })
 			String id = keybindIdMap.get((String) table.getValueAt(row, 0));
 
 			if ((LOCAL_ONLY.contains(id) && column == GLOBAL_COL) ||

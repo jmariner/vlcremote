@@ -37,11 +37,13 @@ public class PlaylistPanel extends JPanel {
 	
 	private SVGIcon addFavIcon, removeFavIcon;
 
+	private Point screenPos;
+	private int hoverRow;
+
 	protected SongItem currentSong;
 	protected ClearableTextField searchField;
 	protected JToggleButton showFavoritesButton;
 	protected boolean filterEnabled;
-	protected int hoverRow;
 
 	protected Map<Integer, SongItem> songMap;
 
@@ -115,7 +117,7 @@ public class PlaylistPanel extends JPanel {
 		playlistTop.add(playlistSearch, BorderLayout.EAST);
 
 		JPanel bottom = GuiUtils.horizontalGridOf(
-				playSelectedButton, favoriteButton, viewCurrentButton, clearFiltersButton);
+				/*playSelectedButton, favoriteButton, */viewCurrentButton, clearFiltersButton);
 
 		this.setBorder(MAIN_PADDING_BORDER);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, PLAYLIST_HEIGHT));
@@ -128,8 +130,8 @@ public class PlaylistPanel extends JPanel {
 	private void initListeners() {
 		showFavoritesButton.addActionListener(this::toggleShowFavorites);
 
-		playSelectedButton.addActionListener(this::switchSongToSelected);
-		favoriteButton.addActionListener(this::favoriteSelected);
+	//	playSelectedButton.addActionListener(e -> this.switchSong(table.getSelected().getId()));
+	//	favoriteButton.addActionListener(this::favoriteSelected);
 		viewCurrentButton.addActionListener(this::scrollToCurrent);
 		clearFiltersButton.addActionListener(this::clearFilters);
 		albumSelectionBox.addActionListener(this::switchAlbum);
@@ -139,6 +141,13 @@ public class PlaylistPanel extends JPanel {
 		table.addMouseListener(listener);
 		table.addMouseMotionListener(listener);
 		table.getSelectionModel().addListSelectionListener(this::selectionChanged);
+		
+		gui.addMouseMotionListener(new MouseAdapter() {
+			public void mouseExited(MouseEvent e) { 
+				PlaylistPanel.this.mouseExited();
+			}
+		});
+		
 		ToolTipManager.sharedInstance().unregisterComponent(table);
 
 	//	scrollPane.getViewport().addChangeListener(listener);
@@ -170,7 +179,6 @@ public class PlaylistPanel extends JPanel {
 		currentSong = status.getCurrentSong();
 		if (table.getSelected() == null ||!table.getSelected().equals(currentSong))
 			scrollToCurrent(null);
-	//	table.repaintHoverArea();
 		viewCurrentButton.setEnabled(table.getRowOf(currentSong) > -1);
 		albumSelectionBox.setSelectedItem(status.getCurrentAlbum());
 	}
@@ -204,18 +212,17 @@ public class PlaylistPanel extends JPanel {
 		filterChanged();
 	}
 	
-	private void favoriteSelected(ActionEvent e) {
-		String cur = table.getSelected().toString();
-		if (e.getActionCommand().equals("remove"))
-			UserSettings.removeFavorite(cur);
+	protected void favoriteSong(String action, String title) {
+		if (action.equals("remove"))
+			UserSettings.removeFavorite(title);
 		else
-			UserSettings.addFavorite(cur);
+			UserSettings.addFavorite(title);
 
 		filterChanged();
 		selectionChanged(null);
 	}
 
-	protected void selectionChanged(ListSelectionEvent e) {
+	private void selectionChanged(ListSelectionEvent e) {
 		SongItem song = table.getSelected();
 		boolean exists = song != null;
 		favoriteButton.setEnabled(exists);
@@ -233,8 +240,10 @@ public class PlaylistPanel extends JPanel {
 		viewCurrentButton.setEnabled(table.getRowOf(currentSong) > -1);
 	}
 	
-	private void switchSongToSelected(AWTEvent e) {
-		VLCStatus s = gui.getRemote().switchSong(table.getSelected().getId());
+	protected void switchSong(int id) {
+		VLCStatus s = gui.getRemote().switchSong(id);
+		if (UserSettings.getBoolean("restartOnTrackChange", false))
+			gui.getRemote().restartStream(1000);
 		table.scrollToSelected();
 		gui.updateInterface(s);
 	}
@@ -243,15 +252,19 @@ public class PlaylistPanel extends JPanel {
 		table.setSelected(currentSong);
 		table.scrollToSelected();
 	}
+	
+	private void mouseExited() {
+		table.disableInteractiveRow();
+		screenPos = null;
+	}
 
 	private class PlaylistListener extends MouseAdapter implements ChangeListener {
 		
-		private Point screenPos;
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			if (e.getClickCount() == 2) {
-				switchSongToSelected(null);
+				switchSong(table.getSelected().getId());
 			}
 			e.consume();
 		}
@@ -264,14 +277,9 @@ public class PlaylistPanel extends JPanel {
 			Point p = new Point(screenPos);
 			SwingUtilities.convertPointFromScreen(p, table);
 
-			int prev = hoverRow;
 			hoverRow = table.rowAtPoint(p);
-
-			if (hoverRow != prev && hoverRow > -1) {
-
+			if (hoverRow > -1) {
 				table.setInteractiveRow(hoverRow);
-
-			//	log.info("moved from row " + prev + " to row " + hoverRow);
 			}
 		}
 
@@ -281,22 +289,18 @@ public class PlaylistPanel extends JPanel {
 			Point p = e.getPoint();
 			JViewport view = table.getViewport();
 			Point viewPos = view.getViewPosition();
-			if 	(p.x < viewPos.x || p.x > view.getWidth() || //check if it actually left the table instead of entering a child component
+			//check if it actually left the table and didn't just enter a child component
+			if 	(p.x < viewPos.x || p.x > view.getWidth() ||
 				 p.y < viewPos.y || p.y > viewPos.y + view.getHeight()) {
 				
-			//	table.disableInteractiveRow();
-
-				hoverRow = -2; // -2 since JTable's row getters return -1 for none
-				screenPos = null;
-
-				log.info("exited!");
+				PlaylistPanel.this.mouseExited();
 			}
 		}
 
 		@Override
 		public void stateChanged(ChangeEvent e) {
-			if (screenPos != null)
-				mouseMoved(null);
+			if (screenPos != null) 
+				mouseMoved(null); // TODO this doesn't work
 		}
 	}
 

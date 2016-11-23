@@ -2,12 +2,9 @@ package com.jmariner.vlcremote.util;
 
 import com.tulskiy.keymaster.common.MediaKey;
 import com.tulskiy.keymaster.common.Provider;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
-
-import static java.awt.event.InputEvent.*;
 
 @SuppressWarnings("unused")
 @Slf4j

@@ -1,12 +1,8 @@
 package com.jmariner.vlcremote.util;
 
 import java.awt.*;
-import java.io.IOException;
-import java.net.URISyntaxException;
-
 import org.w3c.dom.Document;
 
-@SuppressWarnings("unused")
 public enum SimpleIcon {
 	NEXT,
 	PREV,
