@@ -127,6 +127,10 @@ public class PlaylistUtil {
 			this.setOpaque(true);
 		}
 
+		public JPanel update(PlaylistTable table, int r, boolean editing) {
+			return update((SongItem) table.getValueAt(r, 0), table.isRowSelected(r), r, editing);
+		}
+
 		public JPanel update(SongItem v, boolean sel, int r, boolean editing) {
 			
 			if (!sizeSet) {
@@ -165,18 +169,17 @@ public class PlaylistUtil {
 			}
 			
 		//	boolean hover = r == playlist.hoverRow;
-			boolean hover = editing;
-			favButton.setVisible(hover);
+			favButton.setVisible(editing);
 			
 			boolean cur = playlist.currentSong != null && playlist.currentSong.getId() == v.getId();
-			playButton.setVisible(hover || cur);
+			playButton.setVisible(editing || cur);
 			playIcon.recolor(cur ? SELECTED_FOREGROUND : foreground);
 			
 			return this;
 		}
 
 		// DefaultTableCellRenderer states these should be overridden to no-ops
-		@Override public void revalidate() {}
+//		@Override public void revalidate() {}
 //		@Override public void repaint(long t, int x, int y, int w, int h) {}
 //		@Override public void repaint(Rectangle r) {}
 //		@Override public void repaint() {}
@@ -243,7 +246,7 @@ public class PlaylistUtil {
 		public Class<?> getColumnClass(int columnIndex) { return SongItem.class; }
 
 		@Override
-		public boolean isCellEditable(int r, int c) { return true; }
+		public boolean isCellEditable(int r, int c) { return false; }
 
 		@Override
 		public Object getValueAt(int r, int c) { return songs.get(r); }

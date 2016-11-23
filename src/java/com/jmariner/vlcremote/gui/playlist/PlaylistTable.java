@@ -3,6 +3,7 @@ package com.jmariner.vlcremote.gui.playlist;
 import com.jmariner.vlcremote.SongItem;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import javax.swing.table.TableModel;
@@ -10,6 +11,7 @@ import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.util.Collections;
 
+@Slf4j
 public class PlaylistTable extends JTable {
 
 	private PlaylistPanel playlist;
@@ -54,6 +56,11 @@ public class PlaylistTable extends JTable {
 		sorter.setModel(model);
 		sorter.setSortKeys(Collections.singletonList(new RowSorter.SortKey(0, SortOrder.ASCENDING)));
 
+		interactiveRowComponent = new JPanel();
+		interactiveRowComponent.setVisible(false);
+		interactiveRowComponent.setBounds(getCellRect(0, 0, false));
+		this.add(interactiveRowComponent);
+
 		this.setTableHeader(null);
 		this.setRowSorter(sorter);
 	}
@@ -96,21 +103,10 @@ public class PlaylistTable extends JTable {
 		return r == -1 ? null : (SongItem) getValueAt(r, 0);
 	}
 	
-	protected boolean isSelectionVisible() {
-		return isRowVisible(getSelectedRow());
-	}
-	
-	protected boolean isRowVisible(int row) {
-		Container c = getParent();
-		return  (row > -1) &&
-				(c instanceof JViewport) &&
-				c.contains(getCellRect(row, 0, true).getLocation());
-	}
-	
 	protected void scrollToSelected() {
 		int selected = getSelectedRow();
 
-		if (selected == -1 || isSelectionVisible()) return;
+		if (selected == -1) return;
 		
 		Rectangle rect = getCellRect(selected, 0, true);
 		JViewport view = (JViewport) getParent();
@@ -140,23 +136,25 @@ public class PlaylistTable extends JTable {
 	protected void repaintHoverArea() {
 		Rectangle hover = util.getCellPanel().getHoverPanel().getBounds();
 		JViewport view = getViewport();
-	//	this.paintImmediately(r.x, 0, r.width, getHeight());
 		this.repaint(hover.x, view.getViewPosition().y, hover.width, view.getHeight());
 	}
 	
 	protected void setInteractiveRow(int r) {
 		if (r > -1 && r < getRowCount()) {
+
+		//	disableInteractiveRow();
 			
-			interactiveRowComponent = util.getCellPanel()
-					.update((SongItem) getValueAt(r, 0), isRowSelected(r), r, true);
-			
+			interactiveRowComponent = util.getCellPanel().update(this, r, true);
+
+			this.repaint(getCellRect(interactiveRow, 0, false));
+			this.remove(interactiveRowComponent);
 			interactiveRowComponent.setBounds(getCellRect(r, 0, false));
-			
-			if (!interactiveRowEnabled())
-				this.add(interactiveRowComponent);
-			
-			interactiveRowComponent.validate();
+			this.add(interactiveRowComponent);
+			interactiveRowComponent.setVisible(true);
+			this.revalidate();
+			interactiveRowComponent.revalidate();
 			interactiveRowComponent.repaint();
+
 			this.interactiveRow = r;
 			
 		}
@@ -167,12 +165,13 @@ public class PlaylistTable extends JTable {
 			this.remove(interactiveRowComponent);
 
 			this.repaint(getCellRect(interactiveRow, 0, false));
-			
+
+			this.interactiveRowComponent = null;
 			this.interactiveRow = -1;
 		}
 	}
 	
 	protected boolean interactiveRowEnabled() {
-		return interactiveRow > -1;
+		return interactiveRowComponent.isVisible();
 	}
 }

@@ -16,11 +16,7 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import javax.swing.event.ListSelectionEvent;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Vector;
@@ -78,7 +74,7 @@ public class PlaylistPanel extends JPanel {
 		title.setFont(FONT.deriveFont(24f).deriveFont(UNDERLINE));
 		title.setHorizontalAlignment(SwingConstants.CENTER);
 		
-		albumSelectionBox = new JComboBox<String>();
+		albumSelectionBox = new JComboBox<>();
 		albumSelectionBox.setVisible(false);
 		albumSelectionBox.setFont(FONT);
 		
@@ -137,14 +133,15 @@ public class PlaylistPanel extends JPanel {
 		viewCurrentButton.addActionListener(this::scrollToCurrent);
 		clearFiltersButton.addActionListener(this::clearFilters);
 		albumSelectionBox.addActionListener(this::switchAlbum);
-		table.getSelectionModel().addListSelectionListener(this::selectionChanged);
+		searchField.setChangeAction(this::filterChanged);
 
 		PlaylistListener listener = new PlaylistListener();
 		table.addMouseListener(listener);
 		table.addMouseMotionListener(listener);
-		searchField.setChangeAction(this::filterChanged);
-		
-		scrollPane.getViewport().addChangeListener(listener);
+		table.getSelectionModel().addListSelectionListener(this::selectionChanged);
+		ToolTipManager.sharedInstance().unregisterComponent(table);
+
+	//	scrollPane.getViewport().addChangeListener(listener);
 		
 		this.addComponentListener(new ComponentAdapter() {
 			public void componentResized(ComponentEvent e) {
@@ -173,7 +170,7 @@ public class PlaylistPanel extends JPanel {
 		currentSong = status.getCurrentSong();
 		if (table.getSelected() == null ||!table.getSelected().equals(currentSong))
 			scrollToCurrent(null);
-		table.repaintHoverArea();
+	//	table.repaintHoverArea();
 		viewCurrentButton.setEnabled(table.getRowOf(currentSong) > -1);
 		albumSelectionBox.setSelectedItem(status.getCurrentAlbum());
 	}
@@ -249,7 +246,7 @@ public class PlaylistPanel extends JPanel {
 
 	private class PlaylistListener extends MouseAdapter implements ChangeListener {
 		
-		private Point pos;
+		private Point screenPos;
 
 		@Override
 		public void mouseClicked(MouseEvent e) {
@@ -262,41 +259,43 @@ public class PlaylistPanel extends JPanel {
 		@Override
 		public void mouseMoved(MouseEvent e) {
 			if (e != null)
-				pos = e.getLocationOnScreen();
-			
-			Point p = new Point(pos);
+				screenPos = e.getLocationOnScreen();
+
+			Point p = new Point(screenPos);
 			SwingUtilities.convertPointFromScreen(p, table);
-			
+
 			int prev = hoverRow;
 			hoverRow = table.rowAtPoint(p);
-			
-			if (hoverRow != prev) {
-				
+
+			if (hoverRow != prev && hoverRow > -1) {
+
 				table.setInteractiveRow(hoverRow);
-				
-				log.info("moved from row " + prev + " to row " + hoverRow);
+
+			//	log.info("moved from row " + prev + " to row " + hoverRow);
 			}
 		}
-		
+
 		@Override
 		public void mouseExited(MouseEvent e) {
-			Point p = new Point(pos);
+
+			Point p = e.getPoint();
 			JViewport view = table.getViewport();
-			SwingUtilities.convertPointFromScreen(p, view);
-			if (!view.getBounds().contains(p)) {
+			Point viewPos = view.getViewPosition();
+			if 	(p.x < viewPos.x || p.x > view.getWidth() || //check if it actually left the table instead of entering a child component
+				 p.y < viewPos.y || p.y > viewPos.y + view.getHeight()) {
 				
-				table.disableInteractiveRow();
-				
+			//	table.disableInteractiveRow();
+
 				hoverRow = -2; // -2 since JTable's row getters return -1 for none
-				pos = null;
-				
+				screenPos = null;
+
 				log.info("exited!");
 			}
 		}
 
 		@Override
 		public void stateChanged(ChangeEvent e) {
-			if (pos != null)
+			if (screenPos != null)
 				mouseMoved(null);
 		}
 	}
