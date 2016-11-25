@@ -32,13 +32,17 @@ public class PlaylistPanel extends JPanel {
 	private PlaylistTable table;
 	private JScrollPane scrollPane;
 
-	private JButton playSelectedButton, favoriteButton, viewCurrentButton, clearFiltersButton;
-	private JComboBox<String> albumSelectionBox;
+	private JButton favoriteButton, viewCurrentButton, 
+					clearFiltersButton, sortOrderButton;
+	private JComboBox<String> albumSelectionBox, sortSelectionBox;
 	
-	private SVGIcon addFavIcon, removeFavIcon;
+	private SVGIcon addFavIcon, removeFavIcon, ascendingIcon, descendingIcon;
 
 	private Point screenPos;
 	private int hoverRow;
+	
+	private static final String ASCENDING_KEY = "ascending";
+	private static final String DESCENDING_KEY = "descending";
 
 	protected SongItem currentSong;
 	protected ClearableTextField searchField;
@@ -52,6 +56,8 @@ public class PlaylistPanel extends JPanel {
 
 		addFavIcon = SimpleIcon.FAVORITE.get();
 		removeFavIcon = SimpleIcon.FAVORITE_EMPTY.get();
+		ascendingIcon = SimpleIcon.DOWN_ARROW.get();
+		descendingIcon = SimpleIcon.UP_ARROW.get();
 		
 		this.hoverRow = -2;
 
@@ -59,7 +65,6 @@ public class PlaylistPanel extends JPanel {
 		initListeners();
 		
 		gui.addControlComponent(searchField);
-		gui.addControlComponent(playSelectedButton);
 	}
 	
 	private void init() {
@@ -80,6 +85,10 @@ public class PlaylistPanel extends JPanel {
 		albumSelectionBox.setVisible(false);
 		albumSelectionBox.setFont(FONT);
 		
+		sortSelectionBox = new JComboBox<String>(
+				PlaylistTable.ORDERS.stream().collect(Collectors.toCollection(Vector::new))
+		);
+		
 		JPanel topLeftPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, MAIN_PADDING, 0));
 		topLeftPanel.add(title);
 		topLeftPanel.add(albumSelectionBox);
@@ -94,8 +103,9 @@ public class PlaylistPanel extends JPanel {
 		showFavoritesButton.setSelectedIcon(filledFav);
 		showFavoritesButton.setToolTipText("Show favorites");
 		
-		playSelectedButton = new JButton(SimpleIcon.PLAY_OUTLINE.get());
-		playSelectedButton.setToolTipText("Play the selected song");
+		sortOrderButton = new JButton(ascendingIcon);
+		sortOrderButton.setActionCommand(ASCENDING_KEY);
+		sortOrderButton.setToolTipText("Ascending sort");
 		favoriteButton = new JButton(addFavIcon);
 		favoriteButton.setToolTipText("Save selected song as favorite");
 		viewCurrentButton = new JButton(SimpleIcon.JUMP_TO.get());
@@ -104,7 +114,8 @@ public class PlaylistPanel extends JPanel {
 		clearFiltersButton.setToolTipText("Clear the search and favorite filters");
 		
 		Dimension dim = GuiUtils.squareDim(SimpleIcon.Defaults.BUTTON_SIZE);
-		Arrays.asList(showFavoritesButton, favoriteButton, playSelectedButton, viewCurrentButton, clearFiltersButton)
+		Arrays.asList(sortOrderButton, showFavoritesButton,
+				favoriteButton, viewCurrentButton, clearFiltersButton)
 			.forEach(b -> b.setPreferredSize(dim));
 
 		JPanel playlistSearch = new JPanel(new FlowLayout(FlowLayout.CENTER, MAIN_PADDING, 0));
@@ -112,17 +123,28 @@ public class PlaylistPanel extends JPanel {
 		playlistSearch.add(searchField);
 		playlistSearch.add(showFavoritesButton);
 
-		JPanel playlistTop = new JPanel(new BorderLayout(0, 0));
-		playlistTop.add(topLeftPanel, BorderLayout.WEST);
-		playlistTop.add(playlistSearch, BorderLayout.EAST);
+		JPanel top = new JPanel(new BorderLayout(0, 0));
+		top.add(topLeftPanel, BorderLayout.WEST);
+		top.add(playlistSearch, BorderLayout.EAST);
 
-		JPanel bottom = GuiUtils.horizontalGridOf(
-				/*playSelectedButton, favoriteButton, */viewCurrentButton, clearFiltersButton);
+		JPanel bottomLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, MAIN_PADDING, 0));
+		bottomLeft.add(new JLabel("Sort:"));
+		bottomLeft.add(sortSelectionBox);
+		bottomLeft.add(sortOrderButton);
+		
+		JPanel bottomRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, MAIN_PADDING, 0));
+		bottomRight.add(favoriteButton);
+		bottomRight.add(viewCurrentButton);
+		bottomRight.add(clearFiltersButton);
+		
+		JPanel bottom = new JPanel(BORDER_LAYOUT);
+		bottom.add(bottomLeft, BorderLayout.WEST);
+		bottom.add(bottomRight,	BorderLayout.EAST);
 
 		this.setBorder(MAIN_PADDING_BORDER);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, PLAYLIST_HEIGHT));
 		this.setLayout(new BorderLayout(0, MAIN_PADDING));
-		this.add(playlistTop, BorderLayout.NORTH);
+		this.add(top, BorderLayout.NORTH);
 		this.add(scrollPane, BorderLayout.CENTER);
 		this.add(bottom, BorderLayout.SOUTH);
 	}
@@ -130,11 +152,14 @@ public class PlaylistPanel extends JPanel {
 	private void initListeners() {
 		showFavoritesButton.addActionListener(this::toggleShowFavorites);
 
-	//	playSelectedButton.addActionListener(e -> this.switchSong(table.getSelected().getId()));
-	//	favoriteButton.addActionListener(this::favoriteSelected);
+		favoriteButton.addActionListener(e ->
+			favoriteSong(e.getActionCommand(), table.getSelected().toString())
+		);
 		viewCurrentButton.addActionListener(this::scrollToCurrent);
 		clearFiltersButton.addActionListener(this::clearFilters);
 		albumSelectionBox.addActionListener(this::switchAlbum);
+		sortSelectionBox.addActionListener(this::switchSortType);
+		sortOrderButton.addActionListener(this::switchSortOrder);
 		searchField.setChangeAction(this::filterChanged);
 
 		PlaylistListener listener = new PlaylistListener();
@@ -183,6 +208,20 @@ public class PlaylistPanel extends JPanel {
 		albumSelectionBox.setSelectedItem(status.getCurrentAlbum());
 	}
 	
+	private void switchSortOrder(ActionEvent e) {
+		boolean wasAscending = e.getActionCommand().equals(ASCENDING_KEY);
+		sortOrderButton.setActionCommand(wasAscending ? DESCENDING_KEY : ASCENDING_KEY);
+		sortOrderButton.setIcon(wasAscending ? descendingIcon : ascendingIcon);
+		sortOrderButton.setToolTipText(wasAscending ? "Descending sort" : "Ascending sort");
+		
+		switchSortType(null);
+	}
+	
+	private void switchSortType(AWTEvent e) {
+		table.sortBy((String) sortSelectionBox.getSelectedItem(),
+				sortOrderButton.getActionCommand().equals(ASCENDING_KEY));
+	}
+	
 	private void switchAlbum(AWTEvent e) {
 		String album = (String) albumSelectionBox.getSelectedItem();
 		if (!album.equals(gui.getRemote().getStatus().getCurrentAlbum())) {
@@ -226,7 +265,6 @@ public class PlaylistPanel extends JPanel {
 		SongItem song = table.getSelected();
 		boolean exists = song != null;
 		favoriteButton.setEnabled(exists);
-		playSelectedButton.setEnabled(exists);
 		if (exists) {
 			boolean fav = UserSettings.isFavorite(song.toString());
 			favoriteButton.setActionCommand(fav ? "remove" : "add");

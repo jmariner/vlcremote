@@ -1,5 +1,6 @@
 package com.jmariner.vlcremote.gui.playlist;
 
+import com.google.common.collect.ImmutableMap;
 import com.jmariner.vlcremote.SongItem;
 
 import lombok.Getter;
@@ -8,7 +9,12 @@ import javax.swing.*;
 import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 
 public class PlaylistTable extends JTable {
 
@@ -22,6 +28,24 @@ public class PlaylistTable extends JTable {
 	private JPanel interactiveRowComponent;
 	@Getter
 	private int interactiveRow;
+			
+			
+	private static final List<RowSorter.SortKey> ASCENDING_SORT =
+			Collections.singletonList(new RowSorter.SortKey(0, SortOrder.ASCENDING));
+	private static final List<RowSorter.SortKey> DESCENDING_SORT =
+			Collections.singletonList(new RowSorter.SortKey(0, SortOrder.DESCENDING));
+	
+	private static final LinkedHashMap<String, Comparator<SongItem>> COMPARATORS =
+			new LinkedHashMap<>();
+	
+	protected static final List<String> ORDERS;
+	
+	static {
+		COMPARATORS.put("name", (s1, s2) -> s1.toString().compareTo(s2.toString()));
+		COMPARATORS.put("title", (s1, s2) -> s1.getTitle().compareTo(s2.getTitle()));
+		COMPARATORS.put("duration", (s1, s2) -> new Integer(s1.getId()).compareTo(new Integer(s2.getId())));
+		ORDERS = new ArrayList<>(COMPARATORS.keySet());
+	}
 			
 	public PlaylistTable(PlaylistPanel playlist) {
 		super();
@@ -42,7 +66,6 @@ public class PlaylistTable extends JTable {
 		this.setRowSelectionAllowed(true);
 		this.setColumnSelectionAllowed(true);
 		this.setDefaultEditor(SongItem.class, null);
-	//	this.setDefaultEditor(SongItem.class, util.getRenderer());
 		this.setDefaultRenderer(SongItem.class, util.getRenderer());
 	}
 	
@@ -52,8 +75,8 @@ public class PlaylistTable extends JTable {
 		model.update();
 		this.setModel(model);
 		sorter.setModel(model);
-		sorter.setSortKeys(Collections.singletonList(new RowSorter.SortKey(0, SortOrder.ASCENDING)));
-
+		sortBy("name", true);
+		
 		this.setTableHeader(null);
 		this.setRowSorter(sorter);
 	}
@@ -61,6 +84,12 @@ public class PlaylistTable extends JTable {
 	protected void setFilterEnabled(boolean enabled) {
 		playlist.filterEnabled = enabled;
 		sorter.setRowFilter(filter);
+	}
+	
+	protected void sortBy(String type, boolean ascending) {
+		assert COMPARATORS.containsKey(type);
+	//	sorter.setComparator(0, COMPARATORS.get(type));
+		sorter.setSortKeys(ascending ? ASCENDING_SORT : DESCENDING_SORT);
 	}
 
 	/**
