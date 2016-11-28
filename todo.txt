@@ -12,9 +12,11 @@ sort FilePreferences alphabetically... this would require changing the interal P
 	in FilePreferences which is used to read/write to file
 
 *** upgrade to file list:
-	download the youtube data and parse for date modified for each
-	set date modified to upload date
-	use luafilesystem fs.attributes to get mtime
+	unable to dynamically load lua libraries in vlc...
+	might just want to download vlc source from github so i can enable dynamic libraries (Makefile?)
+	doing so will allow (1) reading song dates and (2) maybe reading artist/album/title/genre properly
+	date modified: https://keplerproject.github.io/luafilesystem/manual.html
+	metadata: http://lua-users.org/lists/lua-l/2013-04/msg00891.html
 	
 	decide how to handle this second sorting option...
 		actually use table headers and multiple columns?

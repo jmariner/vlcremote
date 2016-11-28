@@ -85,9 +85,10 @@ public class PlaylistPanel extends JPanel {
 		albumSelectionBox.setVisible(false);
 		albumSelectionBox.setFont(FONT);
 		
-		sortSelectionBox = new JComboBox<String>(
+		sortSelectionBox = new JComboBox<>(new DefaultComboBoxModel<>(
 				PlaylistTable.ORDERS.stream().collect(Collectors.toCollection(Vector::new))
-		);
+		));
+		sortSelectionBox.setFont(FONT);
 		
 		JPanel topLeftPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, MAIN_PADDING, 0));
 		topLeftPanel.add(title);
@@ -132,14 +133,12 @@ public class PlaylistPanel extends JPanel {
 		bottomLeft.add(sortSelectionBox);
 		bottomLeft.add(sortOrderButton);
 		
-		JPanel bottomRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, MAIN_PADDING, 0));
-		bottomRight.add(favoriteButton);
-		bottomRight.add(viewCurrentButton);
-		bottomRight.add(clearFiltersButton);
+		JPanel bottomRight =
+				GuiUtils.horizontalGridOf(favoriteButton, viewCurrentButton, clearFiltersButton);
 		
-		JPanel bottom = new JPanel(BORDER_LAYOUT);
-		bottom.add(bottomLeft, BorderLayout.WEST);
-		bottom.add(bottomRight,	BorderLayout.EAST);
+		JPanel bottom = new JPanel(new GridLayout(1, 2));
+		bottom.add(bottomLeft);
+		bottom.add(bottomRight);
 
 		this.setBorder(MAIN_PADDING_BORDER);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, PLAYLIST_HEIGHT));
@@ -213,7 +212,7 @@ public class PlaylistPanel extends JPanel {
 		sortOrderButton.setActionCommand(wasAscending ? DESCENDING_KEY : ASCENDING_KEY);
 		sortOrderButton.setIcon(wasAscending ? descendingIcon : ascendingIcon);
 		sortOrderButton.setToolTipText(wasAscending ? "Descending sort" : "Ascending sort");
-		
+
 		switchSortType(null);
 	}
 	

@@ -1,11 +1,7 @@
 package com.jmariner.vlcremote.gui.playlist;
 
 import com.jmariner.vlcremote.SongItem;
-import com.jmariner.vlcremote.util.Constants;
-import com.jmariner.vlcremote.util.GuiUtils;
-import com.jmariner.vlcremote.util.SVGIcon;
-import com.jmariner.vlcremote.util.SimpleIcon;
-import com.jmariner.vlcremote.util.UserSettings;
+import com.jmariner.vlcremote.util.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 
@@ -15,9 +11,9 @@ import javax.swing.border.LineBorder;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.*;
 import java.util.List;
 
 @Getter
@@ -30,11 +26,13 @@ public class PlaylistUtil {
 
 	private Filter filter;
 	private Renderer renderer;
-	private Model model;
 	private CellPanel cellPanel;
+	private Sorter sorter;
+	private Model model;
 	
 	protected static final double CELL_ICON_RATIO = .05;
 
+	private static final int PADDING = 5;
 	private static final Border SELECTED_BORDER 	= UIManager.getBorder("Table.focusCellHighlightBorder");
 	private static final Color SELECTED_BACKGROUND 	= UIManager.getColor("Table.selectionBackground");
 	private static final Color SELECTED_FOREGROUND 	= UIManager.getColor("Table.selectionForeground");
@@ -54,14 +52,20 @@ public class PlaylistUtil {
 		this.renderer = new Renderer();
 		this.cellPanel = new CellPanel();
 		this.model = new Model();
+		this.sorter = new Sorter();
+	}
+
+	protected void initPost() {
+		model.update();
+		sorter.setModel(model);
+		table.setModel(model);
 	}
 
 	protected class CellPanel extends JPanel {
 		
 		private JPanel leftPanel;
 		private JLabel label, fav;
-		
-		@Getter(AccessLevel.PROTECTED)
+
 		private JPanel hoverPanel;
 		private JButton favButton, playButton;
 
@@ -70,15 +74,11 @@ public class PlaylistUtil {
 		private Color foreground;
 		
 		private boolean sizeSet;
-		
-		private final int PADDING;
 
 		public CellPanel() {
 			super(Constants.BORDER_LAYOUT);
 			
 			this.sizeSet = false;
-			
-			this.PADDING = 5;
 
 			int size = table.getRowHeight()-2;
 			this.foreground =  UIManager.getColor("Table.foreground");
@@ -113,7 +113,6 @@ public class PlaylistUtil {
 			hoverPanel.setOpaque(false);
 			hoverPanel.add(favButton);
 			hoverPanel.add(playButton);
-			// TODO mouse click listeners on "buttons"
 			
 			Arrays.asList(fav, favButton, playButton)
 				.forEach(l -> l.setPreferredSize(GuiUtils.squareDim(size)));
@@ -192,7 +191,6 @@ public class PlaylistUtil {
 				label.setForeground(DEFAULT_FOREGROUND);
 				this.setBorder(DEFAULT_BORDER);
 			}
-			
 
 			return this;
 		}
@@ -226,6 +224,29 @@ public class PlaylistUtil {
 
 			return show;
 
+		}
+	}
+
+	protected class Sorter extends TableRowSorter<TableModel> {
+
+		private SortOrder sortOrder;
+
+		protected void setSortOrder(SortOrder order) {
+			boolean changed = order != this.sortOrder;
+			this.sortOrder = order;
+
+			if (changed)
+				setSortKeys(makeSortKeyList(order));
+			else
+				sort();
+		}
+
+		protected void setComparator(Comparator<?> c) {
+			super.setComparator(0, c);
+		}
+
+		private List<? extends SortKey> makeSortKeyList(SortOrder o) {
+			return Collections.singletonList(new RowSorter.SortKey(0, o));
 		}
 	}
 

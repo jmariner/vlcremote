@@ -1,26 +1,19 @@
 package com.jmariner.vlcremote.gui.playlist;
 
-import com.google.common.collect.ImmutableMap;
 import com.jmariner.vlcremote.SongItem;
-
 import lombok.Getter;
 
 import javax.swing.*;
 import javax.swing.table.TableModel;
-import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
+import java.util.*;
 import java.util.List;
 
 public class PlaylistTable extends JTable {
 
 	private PlaylistPanel playlist;
 	
-	private TableRowSorter<TableModel> sorter;
+	private PlaylistUtil.Sorter sorter;
 	private RowFilter<TableModel, Integer> filter;
 
 	private PlaylistUtil util;
@@ -28,12 +21,6 @@ public class PlaylistTable extends JTable {
 	private JPanel interactiveRowComponent;
 	@Getter
 	private int interactiveRow;
-			
-			
-	private static final List<RowSorter.SortKey> ASCENDING_SORT =
-			Collections.singletonList(new RowSorter.SortKey(0, SortOrder.ASCENDING));
-	private static final List<RowSorter.SortKey> DESCENDING_SORT =
-			Collections.singletonList(new RowSorter.SortKey(0, SortOrder.DESCENDING));
 	
 	private static final LinkedHashMap<String, Comparator<SongItem>> COMPARATORS =
 			new LinkedHashMap<>();
@@ -43,7 +30,7 @@ public class PlaylistTable extends JTable {
 	static {
 		COMPARATORS.put("name", (s1, s2) -> s1.toString().compareTo(s2.toString()));
 		COMPARATORS.put("title", (s1, s2) -> s1.getTitle().compareTo(s2.getTitle()));
-		COMPARATORS.put("duration", (s1, s2) -> new Integer(s1.getId()).compareTo(new Integer(s2.getId())));
+		COMPARATORS.put("duration", (s1, s2) -> new Integer(s1.getDuration()).compareTo(s2.getDuration()));
 		ORDERS = new ArrayList<>(COMPARATORS.keySet());
 	}
 			
@@ -55,7 +42,7 @@ public class PlaylistTable extends JTable {
 		this.playlist = playlist;
 		this.util = new PlaylistUtil(playlist, this);
 		
-		sorter = new TableRowSorter<>();
+		sorter = util.getSorter();
 		filter = util.getFilter();
 		
 		playlist.filterEnabled = false;
@@ -71,10 +58,7 @@ public class PlaylistTable extends JTable {
 	
 	protected void initPost() {
 
-		PlaylistUtil.Model model = util.getModel();
-		model.update();
-		this.setModel(model);
-		sorter.setModel(model);
+		util.initPost();
 		sortBy("name", true);
 		
 		this.setTableHeader(null);
@@ -85,11 +69,11 @@ public class PlaylistTable extends JTable {
 		playlist.filterEnabled = enabled;
 		sorter.setRowFilter(filter);
 	}
-	
+
 	protected void sortBy(String type, boolean ascending) {
 		assert COMPARATORS.containsKey(type);
-	//	sorter.setComparator(0, COMPARATORS.get(type));
-		sorter.setSortKeys(ascending ? ASCENDING_SORT : DESCENDING_SORT);
+		sorter.setComparator(COMPARATORS.get(type));
+		sorter.setSortOrder(ascending ? SortOrder.ASCENDING : SortOrder.DESCENDING);
 	}
 
 	/**
@@ -150,17 +134,6 @@ public class PlaylistTable extends JTable {
 		return (JViewport) getParent();
 	}
 	
-	protected void repaintViewArea() {
-		JViewport view = getViewport();
-		this.repaint(0, view.getViewPosition().y, view.getWidth(), view.getHeight());
-	}
-	
-	protected void repaintHoverArea() {
-		Rectangle hover = util.getCellPanel().getHoverPanel().getBounds();
-		JViewport view = getViewport();
-		this.repaint(hover.x, view.getViewPosition().y, hover.width, view.getHeight());
-	}
-	
 	protected void setInteractiveRow(int r) {
 		if (r > -1 && r < getRowCount()) {
 				
@@ -174,7 +147,7 @@ public class PlaylistTable extends JTable {
 			interactiveRowComponent.repaint();
 
 			this.interactiveRow = r;
-						
+
 		}
 	}
 	
