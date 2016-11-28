@@ -4,6 +4,9 @@ import com.tulskiy.keymaster.common.MediaKey;
 import com.tulskiy.keymaster.common.Provider;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.swing.*;
 
 @SuppressWarnings("unused")
@@ -11,6 +14,10 @@ import javax.swing.*;
 public class GlobalHotkeyHandler {
 
 	private Provider hotkeyProvider;
+	
+	private Map<Object, Runnable> hotkeyCache;
+	
+	boolean enabled;
 
 	public GlobalHotkeyHandler() {
 		this(false);
@@ -18,10 +25,27 @@ public class GlobalHotkeyHandler {
 
 	private GlobalHotkeyHandler(boolean swing) {
 		hotkeyProvider = Provider.getCurrentProvider(swing);
+		hotkeyCache = new HashMap<>();
 	}
 
 	public static GlobalHotkeyHandler getSwingInstance() {
 		return new GlobalHotkeyHandler(true);
+	}
+	
+	public void setEnabled(boolean enabled) {
+		boolean old = this.enabled;
+		this.enabled = enabled;
+		// if changed
+		if (old != this.enabled) {
+			// if has been enabled
+			if (this.enabled) {
+				hotkeyCache.forEach(this::register);
+			}
+			// if has been disabled
+			else {
+				clear();
+			}
+		}
 	}
 
 	//----------------------register by key code and KeyModifier modifier----------------------------
@@ -73,6 +97,8 @@ public class GlobalHotkeyHandler {
 			hotkeyProvider.register((MediaKey) k, h -> action.run());
 		if (k instanceof KeyStroke)
 			hotkeyProvider.register((KeyStroke) k, h -> action.run());
+		
+		hotkeyCache.put(k, action);
 	}
 
 	//-------------------------------other---------------------------------------------------
@@ -82,6 +108,7 @@ public class GlobalHotkeyHandler {
 	}
 
 	public void cleanup() {
+		clear();
 		hotkeyProvider.stop();
 	}
 

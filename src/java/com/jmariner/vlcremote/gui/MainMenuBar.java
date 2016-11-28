@@ -8,9 +8,12 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.jmariner.vlcremote.util.Constants.MAIN_WIDTH;
 import static com.jmariner.vlcremote.util.Constants.MENUBAR_HEIGHT;
@@ -22,10 +25,13 @@ public class MainMenuBar extends JMenuBar {
 
 	private RemoteInterface gui;
 
-	private JCheckBoxMenuItem instantPause, debugBorders, restartOnChange;
+	private JCheckBoxMenuItem instantPause, debugBorders,
+						restartOnChange, disableGlobalHotkeys;
 	private JMenuItem restartStream, gotoPreferences,
 						updateDelayInput, setEqPreset,
 						editKeybinds, resetPassSave;
+	
+	private Map<String, JMenu> cardButtons;
 	
 	private List<String> eqPresets;
 	private Map<String,  JRadioButtonMenuItem> eqPresetButtons;
@@ -52,6 +58,7 @@ public class MainMenuBar extends JMenuBar {
 		updateDelayInput = new JMenuItem("Set update delay");
 		restartOnChange = new JCheckBoxMenuItem("Restart stream on track change");
 		instantPause = new JCheckBoxMenuItem("Enable instant pause");
+		disableGlobalHotkeys = new JCheckBoxMenuItem("Disabled global hotkeys");
 		setEqPreset = new JMenu("Equalizer");
 		editKeybinds = new JMenuItem("Edit keybinds...");
 		resetPassSave = new JMenuItem("Reset saved password status");
@@ -66,17 +73,26 @@ public class MainMenuBar extends JMenuBar {
 		options.setMnemonic(VK_O);
 		options.add(updateDelayInput);
 		options.add(resetPassSave);
-		options.add(debugBorders);
 		options.add(instantPause);
 		options.add(restartOnChange);
+		options.add(disableGlobalHotkeys);
 		options.add(setEqPreset);
+		options.add(debugBorders);
 		
 		setEqPreset.setEnabled(false);
 		restartStream.setEnabled(false);
 		editKeybinds.setEnabled(false);
-
+		disableGlobalHotkeys.setEnabled(false);
+		
+		cardButtons = RemoteInterface.CARD_NAMES.stream()
+				.collect(Collectors.toMap(Function.identity(), JMenu::new));
+		
+		// TODO actionlisteners on card button items that call gui.setVisibleCard(cardName)
+		
 		this.add(tools);
 		this.add(options);
+		this.add(Box.createHorizontalGlue());
+		new ArrayDeque<>(cardButtons.values()).descendingIterator().forEachRemaining(this::add);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, MENUBAR_HEIGHT));
 	}
 
@@ -103,6 +119,7 @@ public class MainMenuBar extends JMenuBar {
 	protected void initPost() {
 		restartStream.setEnabled(true);
 		editKeybinds.setEnabled(true);
+		disableGlobalHotkeys.setSelected(false);
 	}
 	
 	protected void loadSettings() {
@@ -111,16 +128,16 @@ public class MainMenuBar extends JMenuBar {
 	}
 
 	private void initListeners() {
-		debugBorders.addActionListener(e -> GuiUtils.debugBorderComponents(gui, ((JCheckBoxMenuItem)e.getSource()).isSelected()));
-		restartOnChange.addActionListener(e -> {
-			boolean b = ((JCheckBoxMenuItem)e.getSource()).isSelected();
-			UserSettings.putBoolean("restartOnTrackChange", b);
-		});
+		debugBorders.addActionListener(e -> GuiUtils.debugBorderComponents(gui, debugBorders.isSelected()));
 		
-		instantPause.addActionListener(e -> {
-			boolean b = ((JCheckBoxMenuItem)e.getSource()).isSelected();
-			UserSettings.putBoolean("instantPause", b);
-		});
+		restartOnChange.addActionListener(e -> 
+			UserSettings.putBoolean("restartOnTrackChange", restartOnChange.isSelected()));
+		
+		instantPause.addActionListener(e -> 
+			UserSettings.putBoolean("instantPause", instantPause.isSelected()));
+		
+		disableGlobalHotkeys.addActionListener(e -> 
+			gui.setGlobalHotkeysEnabled(!disableGlobalHotkeys.isSelected()));
 
 		restartStream.addActionListener(e -> gui.getAction("restartStream").run());
 		gotoPreferences.addActionListener(e -> UserSettings.viewPreferencesFile());

@@ -228,6 +228,8 @@ public class PlaylistPanel extends JPanel {
 			this.songMap = status.getSongMap();
 			update(status);
 			table.initPost();
+			filterChanged();
+			scrollToCurrent(null);
 		}
 	}
 	
@@ -296,7 +298,6 @@ public class PlaylistPanel extends JPanel {
 	}
 
 	private class PlaylistListener extends MouseAdapter implements ChangeListener {
-		
 
 		@Override
 		public void mouseClicked(MouseEvent e) {

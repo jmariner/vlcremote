@@ -4,6 +4,7 @@ import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
 import com.jmariner.vlcremote.gui.playlist.PlaylistPanel;
 import com.jmariner.vlcremote.util.*;
+import com.jmariner.vlcremote.util.VLCStatus.State;
 import com.jtattoo.plaf.noire.NoireLookAndFeel;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.jmariner.vlcremote.util.Constants.*;
@@ -38,7 +40,8 @@ public class RemoteInterface extends JFrame {
 	@Getter(AccessLevel.PROTECTED)
 	private LocalHotkeyHandler localHotkeyHandler;
 
-	private JPanel mainPanel;
+	private JPanel mainPanel, primaryCard, songListCard;
+	private CardLayout cardLayout;
 	private JSeparator mainSeparator;
 
 	private MainMenuBar menuBar;
@@ -60,6 +63,12 @@ public class RemoteInterface extends JFrame {
 
 	@Getter @Setter
 	private boolean connected, playlistAreaShowing;
+	
+	private static final String PRIMARY_CARD = "Main";
+	private static final String SONGLIST_CARD = "Song List";
+	
+	protected static final List<String> CARD_NAMES =
+			Arrays.asList(PRIMARY_CARD, SONGLIST_CARD);
 
 	// this is to create a NullPointerException if i try using the superclass's HEIGHT value of 1
 	@SuppressWarnings("unused") private static final Object HEIGHT = null;
@@ -93,13 +102,14 @@ public class RemoteInterface extends JFrame {
 
 		mainPanel = new JPanel(new BorderLayout(0, 20));
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
-		mainPanel.setSize(MAIN_WIDTH, MAIN_HEIGHT);
+		mainPanel.setPreferredSize(new Dimension(MAIN_WIDTH, MAIN_HEIGHT));
 		mainPanel.setFocusable(true);
 		mainPanel.add(loginPanel, BorderLayout.NORTH);
 		mainPanel.add(progressPanel, BorderLayout.CENTER);
 		mainPanel.add(controlsPanel, BorderLayout.SOUTH);
 
 		mainSeparator = new JSeparator();
+		mainSeparator.setPreferredSize(new Dimension(MAIN_WIDTH, SEPARATOR_HEIGHT));
 
 		ClearFocusListener clearFocus = new ClearFocusListener();
 
@@ -127,17 +137,36 @@ public class RemoteInterface extends JFrame {
 					localHotkeyHandler.setEnabled(!f);
 			}
 		}));
+		
+		primaryCard = new JPanel(new BorderLayout());
+		primaryCard.add(mainPanel);
+		primaryCard.setPreferredSize(new Dimension(MAIN_WIDTH, MAIN_HEIGHT));
+		
+		songListCard = new JPanel();
+		songListCard.setPreferredSize(new Dimension(MAIN_WIDTH, MAIN_HEIGHT + PLAYLIST_HEIGHT));
+		
+		cardLayout = new PageViewer();
 
-		this.setLayout(new BorderLayout());
-		this.add(mainPanel, BorderLayout.NORTH);
+	//	this.setLayout(new BorderLayout());
+	//	this.add(mainPanel, BorderLayout.NORTH);
+		this.setLayout(cardLayout);
+		this.add(primaryCard, PRIMARY_CARD);
+		this.add(songListCard, SONGLIST_CARD);
 		this.setJMenuBar(menuBar);
 		this.setTitle("VLC Remote");
-		this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
+	//	this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
 		this.setResizable(false);
+		this.pack();
 		this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		Runtime.getRuntime().addShutdownHook(new CleanupOnShutdown());
 
 		loadSettings();
+	}
+
+	private void loadSettings() {
+		menuBar.loadSettings();
+		loginPanel.loadSettings();
+		
 		if (UserSettings.getBoolean("autoconnect", false)) {
 			if (UserSettings.keyExists("httpPass"))
 				loginPanel.connectPressed(null);
@@ -146,9 +175,35 @@ public class RemoteInterface extends JFrame {
 		}
 	}
 
-	private void loadSettings() {
-		menuBar.loadSettings();
-		loginPanel.loadSettings();
+	public void togglePlaylistArea(AWTEvent e) {
+		playlistAreaShowing = !playlistAreaShowing;
+
+		if (playlistAreaShowing) {
+		//	this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT + PLAYLIST_HEIGHT);
+		//	this.add(mainSeparator, BorderLayout.CENTER);
+		//	this.add(playlistPanel, BorderLayout.SOUTH);
+			primaryCard.setPreferredSize(new Dimension(MAIN_WIDTH, MAIN_HEIGHT + PLAYLIST_HEIGHT + SEPARATOR_HEIGHT));
+			primaryCard.add(mainSeparator, BorderLayout.CENTER);
+			primaryCard.add(playlistPanel, BorderLayout.SOUTH);
+		}
+		else {
+		//	this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
+		//	this.remove(mainSeparator);
+		//	this.remove(playlistPanel);
+			primaryCard.setPreferredSize(new Dimension(MAIN_WIDTH, MAIN_HEIGHT));
+			primaryCard.remove(mainSeparator);
+			primaryCard.remove(playlistPanel);
+		}
+		
+		this.revalidate();
+		this.pack();
+
+		controlsPanel.update((VLCStatus)null);
+	}
+	
+	protected void setVisibleCard(String cardName) {
+		assert CARD_NAMES.contains(cardName);
+		cardLayout.show(this.getContentPane(), cardName);
 	}
 
 	private void initActions() {
@@ -174,7 +229,14 @@ public class RemoteInterface extends JFrame {
 
 	protected void connect() {
 
-		initRemote();
+		remote = new MyVLCRemote(
+				loginPanel.getHost(),
+				loginPanel.getHttpPort(),
+				loginPanel.getPassword(),
+				loginPanel.getStreamPort(),
+				this::handleException
+		);
+		
 		connected = remote.testConnection();
 
 		if (connected) {
@@ -208,16 +270,6 @@ public class RemoteInterface extends JFrame {
 		menuBar.initPost();
 	}
 
-	private void initRemote() {
-		remote = new MyVLCRemote(
-				loginPanel.getHost(),
-				loginPanel.getHttpPort(),
-				loginPanel.getPassword(),
-				loginPanel.getStreamPort(),
-				this::handleException
-		);
-	}
-
 	protected void updateInterface() {
 		updateInterface(null);
 	}
@@ -228,41 +280,21 @@ public class RemoteInterface extends JFrame {
 
 		if (status == null) return; // everything past here requires status
 
-		String newState = null;
-		switch (status.getState()) {
-			case PLAYING:
-				newState = "PAUSE";
-				break;
-			case PAUSED:
-				newState = "PLAY";
-				break;
-			case STOPPED:
-			case UNKNOWN:
-				newState = null;
-				break;
-		}
+		boolean validState =
+				status.getState() == State.PAUSED ||
+				status.getState() == State.PLAYING;
 
-		// newState is null if VLC is neither playing nor paused
-		if (newState == null) return;
+		if (!validState) return;
 
-		controlsPanel.update(status);
-
-		String filename = status.getFilename();
-		String artist = status.getArtist();
-		String title = status.getTitle();
-		String text =
-				title == null ? filename :
-				artist == null ? title :
-				artist + " - " + title;
-
+		String text = status.getCurrentSong().toString();
 		if (!statusPanel.getTitle().equals(text)) { // if we're on a new song
 			statusPanel.setTitle(text);
 			progressPanel.updateLength(status);
 			playlistPanel.update(status);
 		}
-
-		progressPanel.update(status);
 		
+		controlsPanel.update(status);
+		progressPanel.update(status);
 		menuBar.update(status);
 
 	}
@@ -271,25 +303,12 @@ public class RemoteInterface extends JFrame {
 		controlComponents.add(c);
 	}
 	
-	public void togglePlaylistArea(AWTEvent e) {
-		playlistAreaShowing = !playlistAreaShowing;
-
-		if (playlistAreaShowing) {
-			this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT + PLAYLIST_HEIGHT);
-			this.add(mainSeparator, BorderLayout.CENTER);
-			this.add(playlistPanel, BorderLayout.SOUTH);
-		}
-		else {
-			this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT);
-			this.remove(mainSeparator);
-			this.remove(playlistPanel);
-		}
-
-		controlsPanel.update((VLCStatus)null);
-	}
-	
 	protected void editKeybindsPopup(AWTEvent e) {
 		keybindEditor.setVisible(true);
+	}
+	
+	protected void setGlobalHotkeysEnabled(boolean enabled) {
+		globalHotkeyHandler.setEnabled(enabled);
 	}
 
 	private void startUpdateLoop() {
@@ -308,7 +327,7 @@ public class RemoteInterface extends JFrame {
 	}
 	
 	private void heartbeat() {
-		
+		// TODO heartbeat
 	}
 
 	public void clearFocus() {
@@ -344,6 +363,26 @@ public class RemoteInterface extends JFrame {
 
 	private void alert(String title, String text, @MagicConstant(intValues={INFORMATION_MESSAGE,WARNING_MESSAGE, ERROR_MESSAGE,QUESTION_MESSAGE,PLAIN_MESSAGE}) int messageType) {
 		JOptionPane.showMessageDialog(this, GuiUtils.restrictDialogWidth(text), title, messageType);
+	}
+	
+	private class PageViewer extends CardLayout {
+		@Override
+		public Dimension preferredLayoutSize(Container parent) {
+			
+			List<Component> visibles = 
+					Arrays.asList(parent.getComponents())
+					.stream().filter(Component::isVisible).collect(Collectors.toList());
+					
+			if (visibles.size() > 0) {
+				Component current = visibles.get(0);
+				Insets i = parent.getInsets();
+				Dimension pref = current.getPreferredSize();
+				pref.width += i.left + i.right;
+				pref.height += i.top + i.bottom;
+				return pref;
+			}
+			return super.preferredLayoutSize(parent);
+		}
 	}
 
 	private class ClearFocusListener extends MouseAdapter implements KeyListener {

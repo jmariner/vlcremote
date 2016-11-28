@@ -17,11 +17,12 @@ public class Constants {
 
 	public static final int MAIN_PADDING = 10;
 	public static final int MAIN_WIDTH = 650;
-	public static final int MAIN_HEIGHT = 225;
+	public static final int MAIN_HEIGHT = 190;
 
 	public static final int PLAYLIST_HEIGHT = 300;
 	public static final int MENUBAR_HEIGHT = 25;
 	public static final int TOP_HEIGHT = 75;
+	public static final int SEPARATOR_HEIGHT = MAIN_PADDING/2;
 
 	public static final int MAX_HEIGHT = MAIN_HEIGHT + PLAYLIST_HEIGHT + MENUBAR_HEIGHT;
 	

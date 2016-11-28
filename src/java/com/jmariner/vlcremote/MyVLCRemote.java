@@ -334,7 +334,7 @@ public class MyVLCRemote {
 
 	public void setMuted(boolean m) {
 		muted = m;
-		gainControl.setValue(convertVolume(m ? playbackVolume : 0));
+		gainControl.setValue(convertVolume(m ? 0 : playbackVolume));
 	}
 
 	public void incrementVolume(int percentToChange) {
