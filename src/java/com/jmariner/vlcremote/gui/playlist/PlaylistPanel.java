@@ -9,8 +9,6 @@ import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
 
-import lombok.extern.slf4j.Slf4j;
-
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -24,7 +22,6 @@ import java.util.stream.Collectors;
 
 import static com.jmariner.vlcremote.util.Constants.*;
 
-@Slf4j
 public class PlaylistPanel extends JPanel {
 
 	private RemoteInterface gui;
@@ -32,7 +29,7 @@ public class PlaylistPanel extends JPanel {
 	private PlaylistTable table;
 	private JScrollPane scrollPane;
 
-	private JButton favoriteButton, viewCurrentButton, 
+	private JButton playButton, favoriteButton, viewCurrentButton, 
 					clearFiltersButton, sortOrderButton;
 	private JComboBox<String> albumSelectionBox, sortSelectionBox;
 	
@@ -104,6 +101,8 @@ public class PlaylistPanel extends JPanel {
 		showFavoritesButton.setSelectedIcon(filledFav);
 		showFavoritesButton.setToolTipText("Show favorites");
 		
+		playButton = new JButton(SimpleIcon.PLAY_OUTLINE.get());
+		playButton.setToolTipText("Play the selected song");
 		sortOrderButton = new JButton(ascendingIcon);
 		sortOrderButton.setActionCommand(ASCENDING_KEY);
 		sortOrderButton.setToolTipText("Ascending sort");
@@ -115,7 +114,7 @@ public class PlaylistPanel extends JPanel {
 		clearFiltersButton.setToolTipText("Clear the search and favorite filters");
 		
 		Dimension dim = GuiUtils.squareDim(SimpleIcon.Defaults.BUTTON_SIZE);
-		Arrays.asList(sortOrderButton, showFavoritesButton,
+		Arrays.asList(sortOrderButton, showFavoritesButton, playButton,
 				favoriteButton, viewCurrentButton, clearFiltersButton)
 			.forEach(b -> b.setPreferredSize(dim));
 
@@ -134,7 +133,8 @@ public class PlaylistPanel extends JPanel {
 		bottomLeft.add(sortOrderButton);
 		
 		JPanel bottomRight =
-				GuiUtils.horizontalGridOf(favoriteButton, viewCurrentButton, clearFiltersButton);
+				GuiUtils.horizontalGridOf(playButton, favoriteButton,
+						viewCurrentButton, clearFiltersButton);
 		
 		JPanel bottom = new JPanel(new GridLayout(1, 2));
 		bottom.add(bottomLeft);
@@ -151,6 +151,9 @@ public class PlaylistPanel extends JPanel {
 	private void initListeners() {
 		showFavoritesButton.addActionListener(this::toggleShowFavorites);
 
+		playButton.addActionListener(e ->
+			switchSong(table.getSelected().getId())
+		);
 		favoriteButton.addActionListener(e ->
 			favoriteSong(e.getActionCommand(), table.getSelected().toString())
 		);
@@ -163,7 +166,7 @@ public class PlaylistPanel extends JPanel {
 
 		PlaylistListener listener = new PlaylistListener();
 		table.addMouseListener(listener);
-		table.addMouseMotionListener(listener);
+	//	table.addMouseMotionListener(listener); // disabling hover effects for now
 		table.getSelectionModel().addListSelectionListener(this::selectionChanged);
 		
 		gui.addMouseMotionListener(new MouseAdapter() {
@@ -201,7 +204,7 @@ public class PlaylistPanel extends JPanel {
 	
 	public void update(VLCStatus status) {
 		currentSong = status.getCurrentSong();
-		if (table.getSelected() == null ||!table.getSelected().equals(currentSong))
+		if (table.getSelected() == null || !table.getSelected().equals(currentSong))
 			scrollToCurrent(null);
 		viewCurrentButton.setEnabled(table.getRowOf(currentSong) > -1);
 		albumSelectionBox.setSelectedItem(status.getCurrentAlbum());
@@ -265,6 +268,7 @@ public class PlaylistPanel extends JPanel {
 	private void selectionChanged(ListSelectionEvent e) {
 		SongItem song = table.getSelected();
 		boolean exists = song != null;
+		playButton.setEnabled(exists);
 		favoriteButton.setEnabled(exists);
 		if (exists) {
 			boolean fav = UserSettings.isFavorite(song.toString());
@@ -282,7 +286,7 @@ public class PlaylistPanel extends JPanel {
 	protected void switchSong(int id) {
 		VLCStatus s = gui.getRemote().switchSong(id);
 		if (UserSettings.getBoolean("restartOnTrackChange", false))
-			gui.getRemote().restartStream(1000);
+			gui.getRemote().getPlayer().restart(1000);
 		table.scrollToSelected();
 		gui.updateInterface(s);
 	}

@@ -4,6 +4,7 @@ import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
 import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.RegexFilter;
+import com.jmariner.vlcremote.util.SVGIcon;
 import com.jmariner.vlcremote.util.SimpleIcon;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
@@ -39,12 +40,18 @@ public class ControlsPanel extends JPanel {
 	private JSlider volumeSlider;
 	private JTextField volumeTextField;
 	
+	private SVGIcon volumeNone, volumeLow, volumeHigh;
+	
 	private List<AbstractButton> vlcControlButtons = new ArrayList<>();
 	
 	protected ControlsPanel(RemoteInterface gui) {
 		super(new BorderLayout(0, 0));
 		
 		this.gui = gui;
+		
+		this.volumeNone = SimpleIcon.VOLUME_NONE.get();
+		this.volumeLow = SimpleIcon.VOLUME_LOW.get();
+		this.volumeHigh = SimpleIcon.VOLUME_HIGH.get();
 		
 		init();
 		
@@ -135,7 +142,7 @@ public class ControlsPanel extends JPanel {
 		vlcControlButtons.forEach(b -> b.addActionListener(this::controlButtonPressed));
 		Arrays.asList(nextButton, prevButton).forEach(b -> b.addActionListener(e -> {
 			if (UserSettings.getBoolean("restartOnTrackChange", false))
-				gui.getRemote().restartStream(1000);
+				gui.getRemote().getPlayer().restart(1000);
 		}));
 		
 		VolumeSliderMouseListener listener = new VolumeSliderMouseListener();
@@ -151,20 +158,20 @@ public class ControlsPanel extends JPanel {
 	
 	protected void updateVolume() {
 		
-		volumeSlider.setValue(gui.getRemote().getPlaybackVolume());
+		volumeSlider.setValue(gui.getRemote().getPlayer().getVolume());
 		
 		int volume = volumeSlider.getValue();
 		if (!volumeTextField.hasFocus())
 			volumeTextField.setText(volume + "%");
 		
-		SimpleIcon volumeIcon =
-				volume == 0 ? SimpleIcon.VOLUME_NONE :
-				volume < 100 ? SimpleIcon.VOLUME_LOW :
-				SimpleIcon.VOLUME_HIGH;
+		SVGIcon volumeIcon =
+				volume == 0 ? volumeNone :
+				volume < 100 ? volumeLow :
+				volumeHigh;
 
-		toggleMuteButton.setIcon(volumeIcon.get());
+		toggleMuteButton.setIcon(volumeIcon);
 		toggleMuteButton.setToolTipText("Click to " +
-				(gui.getRemote().isMuted() ? "unmute" : "mute"));
+				(gui.getRemote().getPlayer().isMuted() ? "unmute" : "mute"));
 	}
 	
 	protected void update(VLCStatus status) {
@@ -203,10 +210,10 @@ public class ControlsPanel extends JPanel {
 
 		MyVLCRemote remote = gui.getRemote();
 		String cmd = e.getActionCommand();
-		if (cmd.equals("PLAY") && !remote.isPlayingStream())
-			remote.playStream();
-		else if (cmd.equals("PAUSE") && remote.isPlayingStream())
-			remote.stopStream();
+		if (cmd.equals("PLAY") && !remote.getPlayer().isPlaying())
+			remote.getPlayer().start();
+		else if (cmd.equals("PAUSE") && remote.getPlayer().isPlaying())
+			remote.getPlayer().stop();
 	}
 
 	private void controlButtonPressed(ActionEvent e) {
@@ -220,8 +227,8 @@ public class ControlsPanel extends JPanel {
 	}
 
 	private void volumeChanged(ChangeEvent e) {
-		if (gui.getRemote().isMuted()) gui.getRemote().setMuted(false);
-		gui.getRemote().setPlaybackVolume(volumeSlider.getValue());
+		gui.getRemote().getPlayer().setMuted(false);
+		gui.getRemote().getPlayer().setVolume(volumeSlider.getValue());
 	}
 
 	private void volumeInputted(ActionEvent e) {
@@ -252,7 +259,7 @@ public class ControlsPanel extends JPanel {
 	}
 
 	private void toggleMute(EventObject e) {
-		gui.getRemote().toggleMute();
+		gui.getRemote().getPlayer().toggleMute();
 		
 		updateVolume();
 	}

@@ -72,6 +72,7 @@ public class GuiUtils {
 		return panel;
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T extends Component> List<T> getComponents(Container c, Class<T> cls) {
 		List<T> out = new ArrayList<>();
 		Arrays.asList(c.getComponents()).forEach(com -> {

@@ -2,21 +2,15 @@ handle the OS's repeated keypresses for local events (globals dont repeat)
 
 option to only shuffle/loop through filtered song list (may not be easy, will need to wait for song to change normally and then switch the song again to the next song in the filtered list, or to a random one from that list if shuffle is on. maybe find a way to handle it from VLC?)
 
-reconnect after timeout and continue update loop
-
 *** add a heartbeat for the update loop to recognize when something went wrong so it can be restarted
+reconnect after timeout and continue update loop
 
 table is not showing selection border until i click one of the items, no matter what. figure it out cause it's annoying
 
-sort FilePreferences alphabetically... this would require changing the interal Properties object
-	in FilePreferences which is used to read/write to file
-
 *** upgrade to file list:
-	unable to dynamically load lua libraries in vlc...
-	might just want to download vlc source from github so i can enable dynamic libraries (Makefile?)
-	doing so will allow (1) reading song dates and (2) maybe reading artist/album/title/genre properly
-	date modified: https://keplerproject.github.io/luafilesystem/manual.html
-	metadata: http://lua-users.org/lists/lua-l/2013-04/msg00891.html
+	going to write my own media streamer to make this possible
+	going to take a while but it will be worth it 
+	will make second item on this list possible (looping through filtered results)
 	
 	decide how to handle this second sorting option...
 		actually use table headers and multiple columns?

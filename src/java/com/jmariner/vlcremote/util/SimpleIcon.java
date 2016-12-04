@@ -1,7 +1,6 @@
 package com.jmariner.vlcremote.util;
 
 import java.awt.*;
-import org.w3c.dom.Document;
 
 public enum SimpleIcon {
 	NEXT, PREV, PLAY, PAUSE,
@@ -11,8 +10,6 @@ public enum SimpleIcon {
 	PLAY_OUTLINE, JUMP_TO, CLEAR_FILTER,
 	UP_ARROW, DOWN_ARROW;
 
-	private Document iconDoc;
-
 	public static class Defaults {
 		public static final double BUTTON_ICON_RATIO = 1.25;
 		public static final int SIZE = 24;
@@ -21,12 +18,10 @@ public enum SimpleIcon {
 		public static final Color SELECTED_COLOR = Color.WHITE;
 	}
 
-	SimpleIcon() {
-		this.iconDoc = SVGIcon.getDocument(name().toLowerCase());
-	}
+	SimpleIcon() {}
 
 	public SVGIcon get() {
-		return new SVGIcon(iconDoc, Defaults.SIZE, Defaults.COLOR);
+		return get(Defaults.SIZE, Defaults.COLOR);
 	}
 
 	public SVGIcon get(double sizeScale) {
@@ -47,6 +42,6 @@ public enum SimpleIcon {
 	}
 
 	public SVGIcon get(int newSize, Color color) {
-		return new SVGIcon(iconDoc, newSize, color);
+		return new SVGIcon(name().toLowerCase(), newSize, color);
 	}
 }

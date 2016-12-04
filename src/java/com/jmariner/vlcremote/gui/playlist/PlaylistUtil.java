@@ -69,7 +69,8 @@ public class PlaylistUtil {
 		private JPanel hoverPanel;
 		private JButton favButton, playButton;
 
-		private SVGIcon favIcon, addFavIcon, removeFavIcon, playIcon;
+		private SVGIcon favIcon, addFavIcon, removeFavIcon,
+						playIcon, selectedPlayIcon;
 
 		private Color foreground;
 		
@@ -87,6 +88,7 @@ public class PlaylistUtil {
 			addFavIcon = SimpleIcon.FAVORITE.get(size, foreground);
 			removeFavIcon = SimpleIcon.FAVORITE_EMPTY.get(size, foreground);
 			playIcon = SimpleIcon.PLAY_OUTLINE.get(size, foreground);
+			selectedPlayIcon = SimpleIcon.PLAY_OUTLINE.get(size, SELECTED_FOREGROUND);
 
 			label = new JLabel();
 			fav = new JLabel();
@@ -177,7 +179,7 @@ public class PlaylistUtil {
 			playButton.setVisible(editing || cur);
 			favButton.setActionCommand(r + (isFav ? " remove " : " add ") + s);
 			
-			playIcon.recolor(cur ? SELECTED_FOREGROUND : foreground);
+			playButton.setIcon(cur ? selectedPlayIcon : playIcon);
 			playButton.setToolTipText(cur ? "Current Song" : "Play this song");
 			playButton.setActionCommand("" + (cur ? -1 : v.getId()));
 			

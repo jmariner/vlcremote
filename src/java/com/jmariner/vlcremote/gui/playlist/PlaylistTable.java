@@ -2,7 +2,6 @@ package com.jmariner.vlcremote.gui.playlist;
 
 import com.jmariner.vlcremote.SongItem;
 import lombok.Getter;
-
 import javax.swing.*;
 import javax.swing.table.TableModel;
 import java.awt.*;
@@ -128,6 +127,8 @@ public class PlaylistTable extends JTable {
 		rect.setLocation(rect.x - pt.x, rect.y - pt.y);
 		
 		view.scrollRectToVisible(rect);
+		
+		repaintRightArea();
 	}
 	
 	protected JViewport getViewport() {
@@ -149,6 +150,19 @@ public class PlaylistTable extends JTable {
 			this.interactiveRow = r;
 
 		}
+	}
+	
+	protected void repaintRightArea() {
+		int w = (int) (getWidth() * 2*PlaylistUtil.CELL_ICON_RATIO);
+		int h = getViewport().getHeight();
+		int y = getViewport().getViewPosition().y;
+		int x = getWidth() - w;
+		
+		// TODO this doesn't quite work, "now playing" button still shows on previous, but only sometimes and seemingly at random
+		this.repaint(x, y, w, h);
+	//	log.info(String.format("x:%d y:%d w:%d h:%d", x, y, w, h));
+		if (interactiveRowEnabled())
+			interactiveRowComponent.repaint(x, 0, w, getRowHeight());
 	}
 	
 	protected void disableInteractiveRow() {

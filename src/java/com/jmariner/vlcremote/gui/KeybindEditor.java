@@ -121,7 +121,7 @@ public class KeybindEditor extends JDialog {
 		
 		mainPanel = new JPanel(new BorderLayout(0, MAIN_PADDING));
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
-		mainPanel.setPreferredSize(new Dimension((int) (0.75*MAIN_WIDTH), MAIN_HEIGHT));
+		mainPanel.setPreferredSize(new Dimension((int) (0.75*MAIN_WIDTH), (int) (MAIN_HEIGHT*1.5)));
 		mainPanel.add(top, BorderLayout.NORTH);
 		mainPanel.add(scrollPane, BorderLayout.CENTER);
 		mainPanel.add(bottom, BorderLayout.SOUTH);

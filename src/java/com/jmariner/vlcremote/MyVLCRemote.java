@@ -1,5 +1,6 @@
 package com.jmariner.vlcremote;
 
+import com.jmariner.vlcremote.util.MediaStreamPlayer;
 import com.jmariner.vlcremote.util.VLCStatus;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
@@ -11,13 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.conn.ConnectTimeoutException;
 
-import javax.sound.sampled.*;
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.ConnectException;
-import java.net.URL;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -32,17 +31,24 @@ public class MyVLCRemote {
 	private String streamURL;
 
 	private String httpPassword;
+	
+	@Getter
+	private MediaStreamPlayer player;
+	
+//	private boolean waitingDelayRestart;
 
 	@Getter
-	private boolean playingStream, muted;
+//	private boolean playingStream, muted;
 
-	@Getter @Setter
-	private int playbackVolume;
-	private SourceDataLine playbackLine;
-	private FloatControl gainControl;
+//	@Getter @Setter
+//	private int playbackVolume;
+//	private SourceDataLine playbackLine;
+//	private FloatControl gainControl;
 
 	@Setter
 	private Consumer<Throwable> exceptionHandler;
+	
+//	private Thread playbackThread;
 
 	private static final String STATUS_REQUEST = 	"custom/status.json";
 	private static final String PLAYLIST_REQUEST = 	"custom/playlist.json";
@@ -53,11 +59,13 @@ public class MyVLCRemote {
 		streamURL = String.format("http://%s:%s/", host, streamPort);
 		httpPassword = password;
 		exceptionHandler = handler;
-
-		playbackVolume = 100;
 		
-		playingStream = false;
-		muted = false;
+		player = new MediaStreamPlayer(streamURL);
+
+	//	playbackVolume = 100;
+		
+	//	playingStream = false;
+	//	muted = false;
 
 		status = new VLCStatus();
 
@@ -139,19 +147,15 @@ public class MyVLCRemote {
 		connect(STATUS_REQUEST + "?command=pl_empty");
 		connect(STATUS_REQUEST + "?command=in_play&input=" + album);
 
-//		if (status.getAlbumCache().containsKey(newAlbum))
-//			status.loadAlbumFromCache(newAlbum);
-//		else {
-			try {
-				do {
-					Thread.sleep(500);
-					updatePlaylist();
-				} while (!status.playlistExists());
-			}
-			catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
-//		}
+		try {
+			do {
+				Thread.sleep(500);
+				updatePlaylist();
+			} while (!status.playlistExists());
+		}
+		catch (InterruptedException e) {
+			throw new RuntimeException(e);
+		}
 
 		return getNewStatus();
 	}
@@ -175,46 +179,69 @@ public class MyVLCRemote {
 	}
 
 	public VLCStatus switchSong(int playlistID) {
-		if (!playingStream)
-			playStream();
+		if (!player.isPlaying())
+			player.start();
 		return sendCommand(Command.PLAY_ITEM, ""+playlistID);
 	}
 
 	private static String encodeUrlParam(String s) {
 		try {
-			return URLEncoder.encode(s, "UTF-8");
+			return URLEncoder.encode(s, StandardCharsets.UTF_8.toString());
 		} catch (UnsupportedEncodingException e) {
 			e.printStackTrace();
 			return null;
 		}
 	}
 
-	private void playStream(int msDelay) {
+	/*
+	private void playStream0(int msDelay) {
+		
+		if (waitingDelayRestart) {
+			playbackThread.interrupt();
+			log.debug("interrupted!");
+		}
 
-		Thread playbackThread = new Thread(() -> {
+		playbackThread = new Thread(() -> {
+			boolean interrupted = false;
 			if (msDelay > 0) {
-				try { Thread.sleep(msDelay); }
-				catch (InterruptedException ignored) {}
+				try {
+					waitingDelayRestart = true;
+					Thread.sleep(msDelay);
+					waitingDelayRestart = false;
+				}
+				catch (InterruptedException e) {
+					interrupted = true;
+				}
 			}
-			streamSampledAudio(streamURL);
-		});
+			if (!interrupted)
+				streamSampledAudio(streamURL);
+			//	player.start();
+		}, "Playback");
 
 		playbackThread.start();
+	}
+	
+	private void playStream(int delay) {
+		player.start(delay);
 	}
 
 	public void playStream() { playStream(0); }
 
 	public void stopStream() {
-		playingStream = false;
-		playbackLine.stop();
+	//	playingStream = false;
+	//	playbackLine.stop();
+		player.stop();
 	}
 
 	public void restartStream(int delay) {
-		stopStream();
-		playStream(delay);
+	//	stopStream();
+	//	playStream(delay);
+		player.restart(delay);
 	}
 	
-	public void restartStream() { restartStream(1000); }
+	public void restartStream() {
+		restartStream(1000);
+	}
 
 	/** Adapted from
 	 * 		<a href="http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/examples/PlaySoundStream.java">
@@ -224,7 +251,7 @@ public class MyVLCRemote {
 	 *  	<a href="http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/">
 	 *  		http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/
 	 *  	</a>
-	 */
+	 *//*
 	private void streamSampledAudio(String urlString)  {
 
 		AudioInputStream ain = null;  // We read audio data from here
@@ -269,7 +296,7 @@ public class MyVLCRemote {
 			int frameSize = format.getFrameSize();
 			byte[] buffer = new byte[4 * 1024 * frameSize]; // the buffer
 			int numBytes = 0;                               // how many bytes
-
+			
 			// We haven't started the line yet.
 			boolean started = false;
 			playingStream = true;
@@ -302,6 +329,9 @@ public class MyVLCRemote {
 				if (remaining > 0)
 					System.arraycopy(buffer, bytesToWrite, buffer, 0, remaining);
 				numBytes = remaining;
+				
+				if (muted)
+					gainControl.setValue(convertVolume(0));
 
 				if (!muted && gainControl.getValue() != convertVolume(playbackVolume)) {
 					if (playbackVolume > 200) playbackVolume = 200;
@@ -333,8 +363,9 @@ public class MyVLCRemote {
 	}
 
 	public void setMuted(boolean m) {
+		player.setMuted(m);
 		muted = m;
-		gainControl.setValue(convertVolume(m ? 0 : playbackVolume));
+	//	gainControl.setValue(convertVolume(m ? 0 : playbackVolume));
 	}
 
 	public void incrementVolume(int percentToChange) {
@@ -346,6 +377,7 @@ public class MyVLCRemote {
 		return (float) (Math.log(percentVol) / Math.log(10.0) * 20.0);
 	}
 
+	//*/
 	@Getter
 	@AllArgsConstructor
 	public enum Command {

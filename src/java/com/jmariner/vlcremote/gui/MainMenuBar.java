@@ -4,11 +4,15 @@ import com.jmariner.vlcremote.MyVLCRemote.Command;
 import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
+
+import lombok.Getter;
+
 import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayDeque;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,11 +35,14 @@ public class MainMenuBar extends JMenuBar {
 						updateDelayInput, setEqPreset,
 						editKeybinds, resetPassSave;
 	
-	private Map<String, JMenu> cardButtons;
+	private Map<String, JToggleButton> cardButtons;
 	
 	private List<String> eqPresets;
 	private Map<String,  JRadioButtonMenuItem> eqPresetButtons;
 	private ButtonGroup eqPresetGroup;
+	
+	private static final Color MENU_SELECT_BG = UIManager.getColor("Menu.selectionBackground");
+	private static final Color MENU_DEFAULT_BG = UIManager.getColor("Menu.background");
 
 	protected MainMenuBar(RemoteInterface gui) {
 		super();
@@ -85,14 +92,19 @@ public class MainMenuBar extends JMenuBar {
 		disableGlobalHotkeys.setEnabled(false);
 		
 		cardButtons = RemoteInterface.CARD_NAMES.stream()
-				.collect(Collectors.toMap(Function.identity(), JMenu::new));
+				.collect(Collectors.toMap(Function.identity(), JToggleButton::new));
 		
-		// TODO actionlisteners on card button items that call gui.setVisibleCard(cardName)
+		cardButtons.forEach((n, m) ->
+			m.addMouseListener(new MouseAdapter() {
+				public void mouseClicked(MouseEvent e) {
+					gui.setVisibleCard(n);
+				}
+			}));
 		
 		this.add(tools);
 		this.add(options);
 		this.add(Box.createHorizontalGlue());
-		new ArrayDeque<>(cardButtons.values()).descendingIterator().forEachRemaining(this::add);
+	//	new ArrayDeque<>(cardButtons.values()).descendingIterator().forEachRemaining(this::add);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, MENUBAR_HEIGHT));
 	}
 
@@ -183,6 +195,27 @@ public class MainMenuBar extends JMenuBar {
 				"Saved password status has been reset.",
 				"Password reset",
 				INFORMATION_MESSAGE);
+	}
+	
+	private class JMenuSelectButton extends JMenu {
+		
+		@Getter
+		private boolean selected;
+		
+		public JMenuSelectButton(String text) {
+			super(text);
+		}
+		
+		public void setSelected(boolean selected) {
+			this.selected = selected;
+		}
+		
+		public void paintComponent(Graphics g) {
+			super.paintComponent(g);
+			Graphics2D g2 = (Graphics2D)g;
+			g2.setColor(this.selected ? MENU_SELECT_BG : MENU_DEFAULT_BG);
+			g2.fillRect(0, 0, getWidth()-1, getHeight()-1);
+		}
 	}
 
 }

@@ -210,16 +210,16 @@ public class RemoteInterface extends JFrame {
 		int step = UserSettings.getInt("volumeStep", 5);
 		
 		actions.put("incVolume", () -> {
-			remote.incrementVolume(step);
+			remote.getPlayer().incrementVolume(step);
 			controlsPanel.updateVolume();
 		});
 		actions.put("decVolume", () -> {
-			remote.incrementVolume(-step);
+			remote.getPlayer().incrementVolume(-step);
 			controlsPanel.updateVolume();
 		});
 		
 		actions.put("searchPlaylist", playlistPanel::startSearch);
-		actions.put("restartStream", remote::restartStream);
+		actions.put("restartStream", () -> remote.getPlayer().restart(1000));
 	}
 	
 	protected Runnable getAction(String name) {
@@ -248,7 +248,7 @@ public class RemoteInterface extends JFrame {
 			remote.sendCommand(Command.PLAY);
 			updateInterface(remote.getNewStatus());
 			startUpdateLoop();
-			remote.playStream();
+			remote.getPlayer().start();
 		}
 	}
 	
@@ -312,7 +312,8 @@ public class RemoteInterface extends JFrame {
 	}
 
 	private void startUpdateLoop() {
-		updateLoop = Executors.newScheduledThreadPool(1)
+		updateLoop = Executors
+				.newSingleThreadScheduledExecutor(r -> new Thread(r, "Update Loop"))
 				.scheduleAtFixedRate(() -> {
 					updateInterface(remote.getNewStatus());
 					heartbeat();
@@ -405,7 +406,7 @@ public class RemoteInterface extends JFrame {
 		@Override
 		public void run() {
 			if (connected) {
-				remote.stopStream();
+				remote.getPlayer().stop();
 				remote.sendCommand(Command.PAUSE);
 			}
 			if (globalHotkeyHandler != null)
