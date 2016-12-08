@@ -2,6 +2,7 @@ package com.jmariner.vlcremote.gui;
 
 import com.jmariner.vlcremote.MyVLCRemote;
 import com.jmariner.vlcremote.MyVLCRemote.Command;
+import com.jmariner.vlcremote.gui.playlist.MasterPlaylistTableTab;
 import com.jmariner.vlcremote.gui.playlist.PlaylistPanel;
 import com.jmariner.vlcremote.util.*;
 import com.jmariner.vlcremote.util.VLCStatus.State;
@@ -51,8 +52,8 @@ public class RemoteInterface extends JFrame {
 	private ControlsPanel controlsPanel;
 	private PlaylistPanel playlistPanel;
 	private KeybindEditor keybindEditor;
+	private MasterPlaylistTableTab masterPlaylistTable;
 
-	private List<JPanel> panels;
 	private List<JComponent> controlComponents;
 	private List<JTextField> textFields;
 
@@ -88,7 +89,6 @@ public class RemoteInterface extends JFrame {
 			e.printStackTrace();
 		}
 
-		panels = new ArrayList<>();
 		textFields = new ArrayList<>();
 		controlComponents = new ArrayList<>();
 		actions = new HashMap<>();
@@ -99,6 +99,7 @@ public class RemoteInterface extends JFrame {
 		progressPanel = new ProgressPanel(this);
 		controlsPanel = new ControlsPanel(this);
 		playlistPanel = new PlaylistPanel(this);
+		masterPlaylistTable = new MasterPlaylistTableTab(this);
 
 		mainPanel = new JPanel(new BorderLayout(0, 20));
 		mainPanel.setBorder(new EmptyBorder(MAIN_PADDING, MAIN_PADDING, MAIN_PADDING, MAIN_PADDING));
@@ -111,39 +112,30 @@ public class RemoteInterface extends JFrame {
 		mainSeparator = new JSeparator();
 		mainSeparator.setPreferredSize(new Dimension(MAIN_WIDTH, SEPARATOR_HEIGHT));
 
-		ClearFocusListener clearFocus = new ClearFocusListener();
-
-		panels = Arrays.asList(
-				mainPanel, playlistPanel, loginPanel, progressPanel, controlsPanel, statusPanel);
+		MultiListener listener = new MultiListener();
 		
 		controlComponents.forEach(c -> {
-			c.addKeyListener(clearFocus);
+			c.addKeyListener(listener);
 			c.setEnabled(false);
 		});
 
-		panels.forEach(c -> {
-			c.addMouseListener(clearFocus);
+		Arrays.asList(
+				mainPanel, playlistPanel, loginPanel,
+				progressPanel, controlsPanel, statusPanel)
+		.forEach(c -> {
+			c.addMouseListener(listener);
 			textFields.addAll(GuiUtils.getComponents(c, JTextField.class));
 		});
 
-		textFields.forEach(t -> t.addFocusListener(new FocusListener() {
-			@Override
-			public void focusGained(FocusEvent e) { focusChanged(true);}
-			@Override
-			public void focusLost(FocusEvent e) { focusChanged(false); }
-
-			private void focusChanged(boolean f) {
-				if (localHotkeyHandler != null)
-					localHotkeyHandler.setEnabled(!f);
-			}
-		}));
+		textFields.forEach(t -> t.addFocusListener(listener));
 		
 		primaryCard = new JPanel(new BorderLayout());
 		primaryCard.add(mainPanel);
 		primaryCard.setPreferredSize(new Dimension(MAIN_WIDTH, MAIN_HEIGHT));
 		
-		songListCard = new JPanel();
-		songListCard.setPreferredSize(new Dimension(MAIN_WIDTH, MAIN_HEIGHT + PLAYLIST_HEIGHT));
+		songListCard = new JPanel(new BorderLayout());
+		songListCard.add(masterPlaylistTable);
+		songListCard.setPreferredSize(new Dimension(MAIN_WIDTH, FULL_HEIGHT));
 		
 		cardLayout = new PageViewer();
 
@@ -159,6 +151,8 @@ public class RemoteInterface extends JFrame {
 		this.pack();
 		this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 		Runtime.getRuntime().addShutdownHook(new CleanupOnShutdown());
+		
+		setVisibleCard(PRIMARY_CARD);
 
 		loadSettings();
 	}
@@ -182,7 +176,7 @@ public class RemoteInterface extends JFrame {
 		//	this.setSize(MAIN_WIDTH, MAIN_HEIGHT + MENUBAR_HEIGHT + PLAYLIST_HEIGHT);
 		//	this.add(mainSeparator, BorderLayout.CENTER);
 		//	this.add(playlistPanel, BorderLayout.SOUTH);
-			primaryCard.setPreferredSize(new Dimension(MAIN_WIDTH, MAIN_HEIGHT + PLAYLIST_HEIGHT + SEPARATOR_HEIGHT));
+			primaryCard.setPreferredSize(new Dimension(MAIN_WIDTH, FULL_HEIGHT));
 			primaryCard.add(mainSeparator, BorderLayout.CENTER);
 			primaryCard.add(playlistPanel, BorderLayout.SOUTH);
 		}
@@ -204,6 +198,8 @@ public class RemoteInterface extends JFrame {
 	protected void setVisibleCard(String cardName) {
 		assert CARD_NAMES.contains(cardName);
 		cardLayout.show(this.getContentPane(), cardName);
+		menuBar.updateCardTabs(cardName);
+		this.pack();
 	}
 
 	private void initActions() {
@@ -237,7 +233,7 @@ public class RemoteInterface extends JFrame {
 				this::handleException
 		);
 		
-		connected = remote.testConnection();
+		connected = remote.isConnected();
 
 		if (connected) {
 			loginPanel.saveConnectionInfo();
@@ -260,6 +256,7 @@ public class RemoteInterface extends JFrame {
 		controlComponents.forEach(b -> b.setEnabled(true));
 
 		playlistPanel.initPost();
+		masterPlaylistTable.initPost();
 		
 		initActions();
 		globalHotkeyHandler = new GlobalHotkeyHandler();
@@ -336,14 +333,24 @@ public class RemoteInterface extends JFrame {
 	}
 
 	protected void handleException(Throwable e) {
-		String text = "An error has occurred.<br><br>" + StringEscapeUtils.escapeHtml4(e.getMessage()) + "<br><br>Show the error?";
-		int showErrorInt = JOptionPane.showConfirmDialog(this, GuiUtils.restrictDialogWidth(text, false), "Error", YES_NO_OPTION, ERROR_MESSAGE);
-		if (showErrorInt == 0) {
-
+		String text = "An error has occurred<br><br>" + StringEscapeUtils.escapeHtml4(e.getMessage());
+		
+		String[] ops = new String[]{"OK", "Details >>"};
+		boolean showError = JOptionPane.showOptionDialog(this,
+				GuiUtils.restrictDialogWidth(text),
+				"Error",
+				JOptionPane.OK_OPTION,
+				JOptionPane.ERROR_MESSAGE,
+				null,
+				ops,
+				ops[0]) == 1;
+		
+		
+		if (showError) {
 			String stackTrace = ExceptionUtils.getStackTrace(e);
 
 			JScrollPane pane = new JScrollPane(new JTextArea(stackTrace));
-			pane.setPreferredSize(new Dimension(MAIN_WIDTH-100, MAX_HEIGHT-100));
+			pane.setPreferredSize(new Dimension(MAIN_WIDTH-100, FULL_HEIGHT-100));
 
 			pane.addHierarchyListener(a -> {
 				Window w = SwingUtilities.getWindowAncestor(pane);
@@ -386,7 +393,7 @@ public class RemoteInterface extends JFrame {
 		}
 	}
 
-	private class ClearFocusListener extends MouseAdapter implements KeyListener {
+	private class MultiListener extends MouseAdapter implements KeyListener, FocusListener {
 		@Override
 		public void keyPressed(KeyEvent e) {
 			if (e.getKeyCode() == VK_ESCAPE)
@@ -399,6 +406,16 @@ public class RemoteInterface extends JFrame {
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			clearFocus();
+		}
+		
+		@Override
+		public void focusGained(FocusEvent e) { focusChanged(true);}
+		@Override
+		public void focusLost(FocusEvent e) { focusChanged(false); }
+
+		private void focusChanged(boolean f) {
+			if (localHotkeyHandler != null)
+				localHotkeyHandler.setEnabled(!f);
 		}
 	}
 

@@ -163,15 +163,15 @@ public class ControlsPanel extends JPanel {
 		int volume = volumeSlider.getValue();
 		if (!volumeTextField.hasFocus())
 			volumeTextField.setText(volume + "%");
-		
-		SVGIcon volumeIcon =
+			
+		toggleMuteButton.setIcon(
 				volume == 0 ? volumeNone :
 				volume < 100 ? volumeLow :
-				volumeHigh;
-
-		toggleMuteButton.setIcon(volumeIcon);
-		toggleMuteButton.setToolTipText("Click to " +
-				(gui.getRemote().getPlayer().isMuted() ? "unmute" : "mute"));
+				volumeHigh);
+		
+		boolean muted = gui.getRemote().getPlayer().isMuted();
+		toggleMuteButton.setToolTipText("Click to " + (muted ? "unmute" : "mute"));
+		toggleMuteButton.setSelected(muted);
 	}
 	
 	protected void update(VLCStatus status) {
@@ -219,16 +219,17 @@ public class ControlsPanel extends JPanel {
 	private void controlButtonPressed(ActionEvent e) {
 		assert gui.isConnected();
 
-		String cmd = e.getActionCommand();
-		assert Command.keys().contains(cmd);
+		Command cmd = Command.forName(e.getActionCommand());
+		assert cmd != null;
 
-		VLCStatus status = gui.getRemote().sendCommand(Command.valueOf(cmd));
+		VLCStatus status = gui.getRemote().sendCommand(cmd);
 		gui.updateInterface(status);
 	}
 
 	private void volumeChanged(ChangeEvent e) {
 		gui.getRemote().getPlayer().setMuted(false);
 		gui.getRemote().getPlayer().setVolume(volumeSlider.getValue());
+		updateVolume();
 	}
 
 	private void volumeInputted(ActionEvent e) {
@@ -253,14 +254,8 @@ public class ControlsPanel extends JPanel {
 		gui.updateInterface();
 	}
 
-	private void resetVolume() {
-		volumeSlider.setValue(100);
-		gui.updateInterface();
-	}
-
 	private void toggleMute(EventObject e) {
 		gui.getRemote().getPlayer().toggleMute();
-		
 		updateVolume();
 	}
 	
@@ -268,7 +263,7 @@ public class ControlsPanel extends JPanel {
 		@Override
 		public void mouseClicked(MouseEvent e) {
 			if (e.getClickCount() == 2) {
-				resetVolume();
+				volumeSlider.setValue(100);
 			}
 		}
 
@@ -277,7 +272,6 @@ public class ControlsPanel extends JPanel {
 			double percent = e.getPoint().x / ((double) volumeSlider.getWidth());
 			int newVal = (int) (volumeSlider.getMinimum() + ((volumeSlider.getMaximum() - volumeSlider.getMinimum()) * percent));
 			volumeSlider.setValue(newVal);
-			gui.updateInterface();
 		}
 
 		@Override
@@ -293,7 +287,6 @@ public class ControlsPanel extends JPanel {
 					newValue = volumeSlider.getMinimum();
 
 				volumeSlider.setValue(newValue);
-				gui.updateInterface();
 			}
 		}
 	}

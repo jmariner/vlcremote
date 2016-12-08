@@ -227,9 +227,8 @@ public class PlaylistPanel extends JPanel {
 	private void switchAlbum(AWTEvent e) {
 		String album = (String) albumSelectionBox.getSelectedItem();
 		if (!album.equals(gui.getRemote().getStatus().getCurrentAlbum())) {
-			VLCStatus status = gui.getRemote().switchAlbum(album);
-			this.songMap = status.getSongMap();
-			update(status);
+			gui.getRemote().switchAlbum(album);
+			this.songMap = gui.getRemote().getStatus().getSongMap();
 			table.initPost();
 			filterChanged();
 			scrollToCurrent(null);

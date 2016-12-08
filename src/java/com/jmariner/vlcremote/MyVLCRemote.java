@@ -8,20 +8,17 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.http.conn.ConnectTimeoutException;
 
 import java.io.UnsupportedEncodingException;
 import java.net.ConnectException;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
-@Slf4j
 public class MyVLCRemote {
 
 	@Getter
@@ -29,26 +26,16 @@ public class MyVLCRemote {
 
 	private String baseURL;
 	private String streamURL;
-
 	private String httpPassword;
 	
 	@Getter
-	private MediaStreamPlayer player;
+	private boolean connected;
 	
-//	private boolean waitingDelayRestart;
-
 	@Getter
-//	private boolean playingStream, muted;
-
-//	@Getter @Setter
-//	private int playbackVolume;
-//	private SourceDataLine playbackLine;
-//	private FloatControl gainControl;
+	private MediaStreamPlayer player;
 
 	@Setter
 	private Consumer<Throwable> exceptionHandler;
-	
-//	private Thread playbackThread;
 
 	private static final String STATUS_REQUEST = 	"custom/status.json";
 	private static final String PLAYLIST_REQUEST = 	"custom/playlist.json";
@@ -60,12 +47,9 @@ public class MyVLCRemote {
 		httpPassword = password;
 		exceptionHandler = handler;
 		
-		player = new MediaStreamPlayer(streamURL);
-
-	//	playbackVolume = 100;
+		connected = false;
 		
-	//	playingStream = false;
-	//	muted = false;
+		player = new MediaStreamPlayer(streamURL);
 
 		status = new VLCStatus();
 
@@ -77,15 +61,18 @@ public class MyVLCRemote {
 				String first = status.getLibraryFolders().keySet().iterator().next();
 				switchAlbum(first);
 			}
+			
+			connected = true;
 		}
 	}
 
 	public boolean testConnection() {
-		return connect("") != null;
+		connected = connect("") != null;
+		return connected;
+		
 	}
 
 	private String connect(String location) {
-
 		try {
 
 			HttpResponse<String> response =
@@ -94,32 +81,31 @@ public class MyVLCRemote {
 					.asString();
 
 			int status = response.getStatus();
-			if (status == 401) {
-				String pass = new String(new char[httpPassword.length()]).replace("\0", "*");
-				String msg = String.format("HTTP 401 Exception: Invalid credentials. (pass: %s)", StringUtils.isBlank(pass) ? "<none>" : pass);
-				throw new ConnectException(msg);
-			}
-			if (status == 404) {
+			if (status == 401)
+				throw new ConnectException("HTTP 401 Exception: Invalid credentials.");
+			if (status == 404)
 				throw new ConnectException("HTTP 404 Not Found: " + baseURL + location);
-			}
 
 			return response.getBody();
 		}
-		catch (ConnectException e) {
-			log.error(e.getMessage());
-			if (exceptionHandler != null)
-				exceptionHandler.accept(e);
-		}
-		catch (UnirestException e) {
-			if (e.getCause() instanceof UnknownHostException)
-				log.error("Unknown host: " + baseURL);
-			else if (e.getCause() instanceof ConnectTimeoutException)
-				log.error(e.getCause().getMessage());
+		catch (UnirestException | ConnectException e) {
+			ConnectException conEx;
+			if (e instanceof UnirestException) {
+	
+				Throwable cause = e.getCause();
+				String msg = (cause instanceof UnknownHostException) ? 
+							"Unknown host: " + baseURL :
+							cause.getMessage();
+	
+				conEx = new ConnectException(msg);
+				conEx.initCause(e.getCause());
+			}
 			else
-				e.printStackTrace();
-
+				conEx = (ConnectException) e;
+			
+			conEx.printStackTrace();
 			if (exceptionHandler != null)
-				exceptionHandler.accept(e.getCause());
+				exceptionHandler.accept(conEx);
 		}
 		return null;
 	}
@@ -193,191 +179,6 @@ public class MyVLCRemote {
 		}
 	}
 
-	/*
-	private void playStream0(int msDelay) {
-		
-		if (waitingDelayRestart) {
-			playbackThread.interrupt();
-			log.debug("interrupted!");
-		}
-
-		playbackThread = new Thread(() -> {
-			boolean interrupted = false;
-			if (msDelay > 0) {
-				try {
-					waitingDelayRestart = true;
-					Thread.sleep(msDelay);
-					waitingDelayRestart = false;
-				}
-				catch (InterruptedException e) {
-					interrupted = true;
-				}
-			}
-			if (!interrupted)
-				streamSampledAudio(streamURL);
-			//	player.start();
-		}, "Playback");
-
-		playbackThread.start();
-	}
-	
-	private void playStream(int delay) {
-		player.start(delay);
-	}
-
-	public void playStream() { playStream(0); }
-
-	public void stopStream() {
-	//	playingStream = false;
-	//	playbackLine.stop();
-		player.stop();
-	}
-
-	public void restartStream(int delay) {
-	//	stopStream();
-	//	playStream(delay);
-		player.restart(delay);
-	}
-	
-	public void restartStream() {
-		restartStream(1000);
-	}
-
-	/** Adapted from
-	 * 		<a href="http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/examples/PlaySoundStream.java">
-	 * 			PlaySoundStream.java
-	 * 		</a><br>
-	 *  Explained at
-	 *  	<a href="http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/">
-	 *  		http://archive.oreilly.com/onjava/excerpt/jenut3_ch17/
-	 *  	</a>
-	 *//*
-	private void streamSampledAudio(String urlString)  {
-
-		AudioInputStream ain = null;  // We read audio data from here
-		playbackLine = null;   // And write it here.
-
-		try {
-
-			URL url = new URL(urlString);
-
-			// Get an audio input stream from the URL
-			ain = AudioSystem.getAudioInputStream(url);
-
-			// Get information about the format of the stream
-			AudioFormat format = ain.getFormat();
-			DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-
-			// If the format is not supported directly (i.e. if it is not PCM
-			// encoded), then try to transcode it to PCM.
-			if (!AudioSystem.isLineSupported(info)) {
-				// This is the PCM format we want to transcode to.
-				// The parameters here are audio format details that you
-				// shouldn't need to understand for casual use.
-				AudioFormat pcm = new AudioFormat(format.getSampleRate(), 16, format.getChannels(), true, false);
-
-				// Get a wrapper stream around the input stream that does the transcoding for us.
-				ain = AudioSystem.getAudioInputStream(pcm, ain);
-
-				// Update the format and info variables for the transcoded data
-				format = ain.getFormat();
-				info = new DataLine.Info(SourceDataLine.class, format);
-			}
-
-			// Open the line through which we'll play the streaming audio.
-			playbackLine = (SourceDataLine) AudioSystem.getLine(info);
-			playbackLine.open(format);
-
-			gainControl = (FloatControl) playbackLine.getControl(FloatControl.Type.MASTER_GAIN);
-
-			// Allocate a buffer for reading from the input stream and writing
-			// to the line.  Make it large enough to hold 4k audio frames.
-			// Note that the SourceDataLine also has its own internal buffer.
-			int frameSize = format.getFrameSize();
-			byte[] buffer = new byte[4 * 1024 * frameSize]; // the buffer
-			int numBytes = 0;                               // how many bytes
-			
-			// We haven't started the line yet.
-			boolean started = false;
-			playingStream = true;
-
-			while (playingStream) {  // We'll exit the loop when we reach the end of stream
-				// First, read some bytes from the input stream.
-				int bytesRead = ain.read(buffer, numBytes, buffer.length - numBytes);
-				// If there were no more bytes to read, we're done.
-				if (bytesRead == -1) break;
-				numBytes += bytesRead;
-
-				// Now that we've got some audio data to write to the line,
-				// start the line, so it will play that data as we write it.
-				if (!started) {
-					playbackLine.start();
-					started = true;
-				}
-
-				// We must write bytes to the line in an integer multiple of
-				// the frameSize.  So figure out how many bytes we'll write.
-				int bytesToWrite = (numBytes / frameSize) * frameSize;
-
-				// Now write the bytes. The line will buffer them and play
-				// them. This call will block until all bytes are written.
-				playbackLine.write(buffer, 0, bytesToWrite);
-
-				// If we didn't have an integer multiple of the frame size,
-				// then copy the remaining bytes to the start of the buffer.
-				int remaining = numBytes - bytesToWrite;
-				if (remaining > 0)
-					System.arraycopy(buffer, bytesToWrite, buffer, 0, remaining);
-				numBytes = remaining;
-				
-				if (muted)
-					gainControl.setValue(convertVolume(0));
-
-				if (!muted && gainControl.getValue() != convertVolume(playbackVolume)) {
-					if (playbackVolume > 200) playbackVolume = 200;
-					if (playbackVolume < 0) playbackVolume = 0;
-					gainControl.setValue(convertVolume(playbackVolume));
-				}
-
-			}
-
-			// Now block until all buffered sound finishes playing.
-			playbackLine.drain();
-		}
-		catch (LineUnavailableException | UnsupportedAudioFileException | IOException e) {
-			e.printStackTrace();
-		}
-		finally { // Always relinquish the resources we use
-			try {
-				if (playbackLine != null) playbackLine.close();
-				if (ain != null) ain.close();
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
-	public void toggleMute() {
-		setMuted(!muted);
-	}
-
-	public void setMuted(boolean m) {
-		player.setMuted(m);
-		muted = m;
-	//	gainControl.setValue(convertVolume(m ? 0 : playbackVolume));
-	}
-
-	public void incrementVolume(int percentToChange) {
-		playbackVolume += percentToChange;
-	}
-
-	private static float convertVolume(int percentVolume) {
-		double percentVol = percentVolume / 100.0;
-		return (float) (Math.log(percentVol) / Math.log(10.0) * 20.0);
-	}
-
-	//*/
 	@Getter
 	@AllArgsConstructor
 	public enum Command {
@@ -398,9 +199,12 @@ public class MyVLCRemote {
 		SEEK_TO			("seek", 	"Seek To: Seek to a point in playback. Supported: +<val>, -<val>, <val> where <val> is seconds or #h#m#s", "val"),
 		PLAY_ITEM		("pl_play",	"Play Item: Play a playlist item by it's ID", "id");
 
-		String cmd;
-		String description;
-		String paramName;
+		String cmd, description, paramName;
+		
+		private static final List<String> KEYS =
+				Arrays.stream(Command.values())
+				.map(Command::name)
+				.collect(Collectors.toList());
 
 		Command(String cmd, String desc) {
 			this(cmd, desc, null);
@@ -410,13 +214,12 @@ public class MyVLCRemote {
 		public String toString() {
 			return cmd;
 		}
-
-		public static List<String> keys() {
-			List<String> out = new ArrayList<>();
-			for (Command c : Command.values()) {
-				out.add(c.name());
-			}
-			return out;
+		
+		public static Command forName(String name) {
+			if (KEYS.contains(name))
+				return Command.valueOf(name);
+			else
+				return null;
 		}
 	}
 

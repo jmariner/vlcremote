@@ -5,14 +5,15 @@ import com.jmariner.vlcremote.util.GuiUtils;
 import com.jmariner.vlcremote.util.UserSettings;
 import com.jmariner.vlcremote.util.VLCStatus;
 
-import lombok.Getter;
-
 import org.apache.commons.lang3.StringUtils;
 
 import javax.swing.*;
+import javax.swing.border.Border;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,7 @@ public class MainMenuBar extends JMenuBar {
 	
 	private List<String> eqPresets;
 	private Map<String,  JRadioButtonMenuItem> eqPresetButtons;
-	private ButtonGroup eqPresetGroup;
+	private ButtonGroup eqPresetGroup, cardButtonGroup;
 	
 	private static final Color MENU_SELECT_BG = UIManager.getColor("Menu.selectionBackground");
 	private static final Color MENU_DEFAULT_BG = UIManager.getColor("Menu.background");
@@ -92,19 +93,21 @@ public class MainMenuBar extends JMenuBar {
 		disableGlobalHotkeys.setEnabled(false);
 		
 		cardButtons = RemoteInterface.CARD_NAMES.stream()
-				.collect(Collectors.toMap(Function.identity(), JToggleButton::new));
+				.collect(Collectors.toMap(Function.identity(), MenuCardButton::new));
 		
-		cardButtons.forEach((n, m) ->
-			m.addMouseListener(new MouseAdapter() {
-				public void mouseClicked(MouseEvent e) {
-					gui.setVisibleCard(n);
-				}
-			}));
+		cardButtonGroup = new ButtonGroup();
+		cardButtons.values().forEach(b -> {
+			cardButtonGroup.add(b);
+		});
+		
+		cardButtons.forEach((n, b) -> b.addActionListener(e -> {
+			gui.setVisibleCard(n);
+		}));
 		
 		this.add(tools);
 		this.add(options);
 		this.add(Box.createHorizontalGlue());
-	//	new ArrayDeque<>(cardButtons.values()).descendingIterator().forEachRemaining(this::add);
+		new ArrayDeque<>(cardButtons.values()).descendingIterator().forEachRemaining(this::add);
 		this.setPreferredSize(new Dimension(MAIN_WIDTH, MENUBAR_HEIGHT));
 	}
 
@@ -159,6 +162,7 @@ public class MainMenuBar extends JMenuBar {
 	}
 	
 	protected void update(VLCStatus status) {
+		
 		if (eqPresets == null) {
 			eqPresets = status.getEqPresets();
 			initEqPresets();
@@ -170,6 +174,10 @@ public class MainMenuBar extends JMenuBar {
 			eqPresetGroup.setSelected(curEqButton.getModel(), true);
 		}
 
+	}
+	
+	protected void updateCardTabs(String currentCard) {
+		cardButtonGroup.setSelected(cardButtons.get(currentCard).getModel(), true);
 	}
 	
 	private void setUpdateDelay(AWTEvent e) {
@@ -197,24 +205,31 @@ public class MainMenuBar extends JMenuBar {
 				INFORMATION_MESSAGE);
 	}
 	
-	private class JMenuSelectButton extends JMenu {
+	private class MenuCardButton extends JToggleButton {
 		
-		@Getter
-		private boolean selected;
+		private Border selectBorder, defaultBorder;
 		
-		public JMenuSelectButton(String text) {
+		public MenuCardButton(String text) {
 			super(text);
+			setFocusPainted(false);
+			setOpaque(true);
+			setForeground(UIManager.getColor("Button.selected"));
+			setBackground(MENU_DEFAULT_BG);
+			
+			Insets i = getBorder().getBorderInsets(this);
+			Insets s = new Insets(i.top-1, i.left-1, i.bottom-1, i.right-1);
+			
+			selectBorder = new CompoundBorder(
+					new LineBorder(MENU_SELECT_BG, 1),
+					new EmptyBorder(s));
+			
+			defaultBorder = new EmptyBorder(i);
 		}
 		
-		public void setSelected(boolean selected) {
-			this.selected = selected;
-		}
-		
-		public void paintComponent(Graphics g) {
-			super.paintComponent(g);
-			Graphics2D g2 = (Graphics2D)g;
-			g2.setColor(this.selected ? MENU_SELECT_BG : MENU_DEFAULT_BG);
-			g2.fillRect(0, 0, getWidth()-1, getHeight()-1);
+		@Override
+		public void paint(Graphics g) {
+			super.paint(g);
+			this.setBorder(isSelected() ? selectBorder : defaultBorder);
 		}
 	}
 

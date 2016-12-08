@@ -14,7 +14,6 @@ import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.UnsupportedAudioFileException;
 
 import lombok.Getter;
-import lombok.Setter;
 
 public class MediaStreamPlayer {
 	
@@ -22,7 +21,7 @@ public class MediaStreamPlayer {
 	private boolean playing, muted;
 	private boolean waitingDelayRestart;
 
-	@Getter @Setter
+	@Getter
 	private int volume;
 	private SourceDataLine playbackLine;
 	private FloatControl gainControl;
@@ -88,11 +87,21 @@ public class MediaStreamPlayer {
 
 	public void setMuted(boolean m) {
 		muted = m;
-		prepareVolume();
+		int vol = muted ? 0 : volume;
+		gainControl.setValue(toGain(vol));
+	}
+	
+	public void setVolume(int vol) {
+		this.volume = vol;
+		if (volume > 200) volume = 200;
+		if (volume < 0) volume = 0;
+		
+		if (gainControl.getValue() != toGain(volume))
+			gainControl.setValue(toGain(volume));
 	}
 
-	public void incrementVolume(int percentToChange) {
-		volume += percentToChange;
+	public void incrementVolume(int change) {
+		setVolume(volume + change);
 	}
 	
 	private void play() {
@@ -145,24 +154,12 @@ public class MediaStreamPlayer {
 			int extra = numBytes % frameSize;
 			int toWrite = numBytes - extra;
 			
-			prepareVolume();
 			playbackLine.write(buffer, 0, toWrite);
 			
 			if (extra > 0)
 				System.arraycopy(buffer, toWrite, buffer, 0, extra);
 			
 			numBytes = extra;
-		}
-	}
-	
-	private void prepareVolume() {
-		if (muted) { 
-			gainControl.setValue(toGain(0));
-		}
-		else if (gainControl.getValue() != toGain(volume)) {
-			if (volume > 200) volume = 200;
-			if (volume < 0) volume = 0;
-			gainControl.setValue(toGain(volume));
 		}
 	}
 	

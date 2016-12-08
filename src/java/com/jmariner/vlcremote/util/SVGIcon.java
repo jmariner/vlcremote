@@ -70,7 +70,6 @@ public class SVGIcon extends ImageIcon {
 		Image fromCache = cache.get(this.toString());
 		if (fromCache != null) {
 			setImage(fromCache);
-			System.out.println("loaded " + name + " from cache");
 			return;
 		}
 
@@ -86,8 +85,6 @@ public class SVGIcon extends ImageIcon {
 		} catch (TranscoderException e) {
 			e.printStackTrace();
 		}
-		
-		System.out.println("transcoded " + name);
 	}
 
 	public void resize(int size) {

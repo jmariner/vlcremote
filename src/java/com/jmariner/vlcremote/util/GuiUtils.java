@@ -43,13 +43,17 @@ public class GuiUtils {
 				});
 	}
 
-	public static String restrictDialogWidth(String text, boolean escape) {
+	public static String restrictDialogWidth(String text, int maxWidth, boolean escape) {
 		text = escape ? StringEscapeUtils.escapeHtml4(text) : text;
-		return String.format("<html><body><p style='width: %dpx'>%s</p></body></html>", MAIN_WIDTH /2, text);
+		return String.format("<html><body><p style='max-width: %dpx'>%s</p></body></html>", maxWidth, text);
+	}
+	
+	public static String restrictDialogWidth(String text, int maxWidth) {
+		return restrictDialogWidth(text, maxWidth, false);
 	}
 
 	public static String restrictDialogWidth(String text) {
-		return restrictDialogWidth(text, false);
+		return restrictDialogWidth(text, MAIN_WIDTH/2);
 	}
 
 	public static String formatTime(int seconds) {

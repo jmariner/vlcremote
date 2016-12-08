@@ -23,8 +23,7 @@ public class Constants {
 	public static final int MENUBAR_HEIGHT = 25;
 	public static final int TOP_HEIGHT = 75;
 	public static final int SEPARATOR_HEIGHT = MAIN_PADDING/2;
-
-	public static final int MAX_HEIGHT = MAIN_HEIGHT + PLAYLIST_HEIGHT + MENUBAR_HEIGHT;
+	public static final int FULL_HEIGHT = MAIN_HEIGHT + PLAYLIST_HEIGHT + SEPARATOR_HEIGHT;
 	
 	public static final FlowLayout FLOW_CENTER = new FlowLayout(FlowLayout.CENTER, 0, 0);
 	public static final BorderLayout BORDER_LAYOUT = new BorderLayout(0, 0);
