@@ -4,18 +4,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.prefs.AbstractPreferences;
 import java.util.prefs.BackingStoreException;
-
-import net.infotrek.util.prefs.FilePreferences;
-import net.infotrek.util.prefs.FilePreferencesFactory;
 
 /**
  * Extension of FilePreferences by David C.<br>
@@ -26,7 +19,7 @@ import net.infotrek.util.prefs.FilePreferencesFactory;
  */
 public class SortedFilePreferences extends AbstractPreferences {
 
-	private static final Logger log = Logger.getLogger(FilePreferences.class.getName());
+	private static final Logger log = Logger.getLogger(SortedFilePreferences.class.getName());
 
 	private Map<String, String> root;
 	private Map<String, SortedFilePreferences> children;
@@ -107,7 +100,7 @@ public class SortedFilePreferences extends AbstractPreferences {
 	{
 		if (isRemoved()) return;
 
-		final File file = FilePreferencesFactory.getPreferencesFile();
+		final File file = SortedFilePreferencesFactory.getPreferencesFile();
 
 		if (!file.exists()) return;
 
@@ -149,7 +142,7 @@ public class SortedFilePreferences extends AbstractPreferences {
 
 	protected void flushSpi() throws BackingStoreException
 	{
-		final File file = FilePreferencesFactory.getPreferencesFile();
+		final File file = SortedFilePreferencesFactory.getPreferencesFile();
 
 		synchronized (file) {
 			SortedProperties p = new SortedProperties();

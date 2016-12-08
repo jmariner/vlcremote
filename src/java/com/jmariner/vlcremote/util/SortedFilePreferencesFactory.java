@@ -5,8 +5,6 @@ import java.util.logging.Logger;
 import java.util.prefs.Preferences;
 import java.util.prefs.PreferencesFactory;
 
-import net.infotrek.util.prefs.FilePreferencesFactory;
-
 /**
  * Extension of FilePreferencesFactory by David C.<br>
  * See <a href="http://www.davidc.net/programming/java/java-preferences-using-file-backing-store">http://www.davidc.net/programming/java/java-preferences-using-file-backing-store</a>
@@ -15,7 +13,7 @@ import net.infotrek.util.prefs.FilePreferencesFactory;
  * allowing keys to be written to file in a sorted order.
  */
 public class SortedFilePreferencesFactory implements PreferencesFactory {
-	private static final Logger log = Logger.getLogger(FilePreferencesFactory.class.getName());
+	private static final Logger log = Logger.getLogger(SortedFilePreferencesFactory.class.getName());
 
 	Preferences rootPreferences;
 	public static final String SYSTEM_PROPERTY_FILE =
